@@ -790,13 +790,15 @@ pub(crate) enum Edition {
     Edition2018,
     #[strum(serialize = "2021")]
     Edition2021,
+    #[strum(serialize = "2024")]
+    Edition2024,
 }
 
 impl Edition {
     fn default_resolver_behavior(self) -> ResolveBehavior {
         match self {
             Self::Edition2015 | Self::Edition2018 => ResolveBehavior::V1,
-            Self::Edition2021 => ResolveBehavior::V2,
+            Self::Edition2021 | Self::Edition2024 => ResolveBehavior::V2,
         }
     }
 }
