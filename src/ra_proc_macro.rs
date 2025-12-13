@@ -3,10 +3,10 @@ use cargo_metadata as cm;
 use itertools::chain;
 use maplit::btreemap;
 use ra_ap_paths::AbsPath;
-use ra_ap_proc_macro_api::{
-    msg::PanicMessage, MacroDylib, ProcMacro, ProcMacroKind, ProcMacroServer,
-};
-use ra_ap_tt::{self as tt, DelimiterKind, Leaf, TokenId};
+use ra_ap_proc_macro_api::{MacroDylib, ProcMacro, ProcMacroClient, ProcMacroKind};
+use ra_ap_span as span;
+use ra_ap_tt::iter::TtElement;
+use ra_ap_tt::{self as tt, DelimiterKind};
 use semver::Version;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -49,7 +49,13 @@ impl<'msg> ProcMacroExpander<'msg> {
         proc_macro_srv_exe: &AbsPath,
         dylib_paths: &BTreeMap<&'msg cm::PackageId, &'msg AbsPath>,
     ) -> anyhow::Result<Self> {
-        let server = ProcMacroServer::spawn(proc_macro_srv_exe.to_path_buf())?;
+        let server = ProcMacroClient::spawn(
+            proc_macro_srv_exe,
+            std::iter::empty::<(&std::ffi::OsStr, &Option<&std::ffi::OsStr>)>(),
+            None::<&Version>,
+        )
+        .map_err(|e| anyhow!("{}", e))
+        .with_context(|| "rust-analyzer error")?;
 
         let mut custom_derive = btreemap!();
         let mut func_like = btreemap!();
@@ -57,14 +63,14 @@ impl<'msg> ProcMacroExpander<'msg> {
 
         for (&package_id, dylib_path) in dylib_paths {
             let proc_macros = server
-                .load_dylib(MacroDylib::new(dylib_path.to_path_buf()))
+                .load_dylib(MacroDylib::new((*dylib_path).to_owned()))
                 .map_err(|e| anyhow!("{}", e))
                 .with_context(|| "rust-analyzer error")?;
 
             for proc_macro in proc_macros {
                 match proc_macro.kind() {
                     ProcMacroKind::CustomDerive => &mut custom_derive,
-                    ProcMacroKind::FuncLike => &mut func_like,
+                    ProcMacroKind::Bang => &mut func_like,
                     ProcMacroKind::Attr => &mut attr,
                 }
                 .insert(proc_macro.name().to_owned(), (package_id, proc_macro));
@@ -101,7 +107,7 @@ impl<'msg> ProcMacroExpander<'msg> {
         name: &str,
         body: impl FnOnce() -> proc_macro2::TokenStream,
     ) -> anyhow::Result<Option<proc_macro2::Group>> {
-        self.attempt_expand(name, ProcMacroKind::FuncLike, body, None::<fn() -> _>)
+        self.attempt_expand(name, ProcMacroKind::Bang, body, None::<fn() -> _>)
     }
 
     pub(crate) fn attempt_expand_attr(
@@ -122,99 +128,119 @@ impl<'msg> ProcMacroExpander<'msg> {
     ) -> anyhow::Result<Option<proc_macro2::Group>> {
         match kind {
             ProcMacroKind::CustomDerive => &self.custom_derive,
-            ProcMacroKind::FuncLike => &self.func_like,
+            ProcMacroKind::Bang => &self.func_like,
             ProcMacroKind::Attr => &self.attr,
         }
         .get(name)
         .map(|(_, proc_macro)| {
-            let output = &proc_macro
+            // Build input TopSubtree<Span> from proc_macro2 tokens
+            let input_top = from_proc_macro2_group(&proc_macro2::Group::new(
+                proc_macro2::Delimiter::None,
+                subtree(),
+            ));
+
+            let attr_top = attr.map(|f| from_proc_macro2_group(&f()));
+            let attr_view = attr_top.as_ref().map(|t| t.view());
+
+            // create simple dummy spans for def_site / call_site / mixed_site
+            let dummy_span = make_dummy_span();
+
+            let expand_res = proc_macro
                 .expand(
-                    &from_proc_macro2_group(&proc_macro2::Group::new(
-                        proc_macro2::Delimiter::None,
-                        subtree(),
-                    )),
-                    attr.map(|f| from_proc_macro2_group(&f())).as_ref(),
+                    input_top.view(),
+                    attr_view,
                     vec![],
+                    dummy_span,
+                    dummy_span,
+                    dummy_span,
+                    String::new(),
                 )
                 .map_err(|e| anyhow!("{}", e))
-                .with_context(|| "rust-analyzer error")?
-                .map_err(|PanicMessage(s)| anyhow!("proc macro paniced: {s:?}"))?;
-            Ok(from_ra_subtree(output))
+                .with_context(|| "rust-analyzer error")?;
+
+            let output = expand_res.map_err(|s| anyhow!("proc macro paniced: {s:?}"))?;
+
+            Ok(from_ra_top_subtree(&output))
         })
         .transpose()
     }
 }
 
-fn from_proc_macro2_group(group: &proc_macro2::Group) -> tt::Subtree<TokenId> {
-    return tt::Subtree {
-        delimiter: from_proc_macro2_delimiter(group.delimiter()),
-        token_trees: group
-            .stream()
-            .into_iter()
-            .map(|tt| from_proc_macro2_token_tree(&tt))
-            .collect(),
+fn make_dummy_span() -> span::Span {
+    use ra_ap_span::{Edition, FileId, TextRange, TextSize};
+    let anchor = span::SpanAnchor {
+        file_id: span::EditionedFileId::current_edition(FileId::from_raw(0)),
+        ast_id: span::ROOT_ERASED_FILE_AST_ID,
     };
-
-    fn from_proc_macro2_delimiter(delimiter: proc_macro2::Delimiter) -> tt::Delimiter<TokenId> {
-        tt::Delimiter {
-            open: TokenId::unspecified(),
-            close: TokenId::unspecified(),
-            kind: match delimiter {
-                proc_macro2::Delimiter::Parenthesis => DelimiterKind::Parenthesis,
-                proc_macro2::Delimiter::Brace => DelimiterKind::Brace,
-                proc_macro2::Delimiter::Bracket => DelimiterKind::Bracket,
-                proc_macro2::Delimiter::None => DelimiterKind::Invisible,
-            },
-        }
-    }
-
-    fn from_proc_macro2_token_tree(tt: &proc_macro2::TokenTree) -> tt::TokenTree<TokenId> {
-        match tt {
-            proc_macro2::TokenTree::Group(g) => from_proc_macro2_group(g).into(),
-            proc_macro2::TokenTree::Ident(i) => Leaf::from(from_proc_macro2_ident(i)).into(),
-            proc_macro2::TokenTree::Punct(p) => Leaf::from(from_proc_macro2_punct(p)).into(),
-            proc_macro2::TokenTree::Literal(l) => Leaf::from(from_proc_macro2_literal(l)).into(),
-        }
-    }
-
-    fn from_proc_macro2_ident(ident: &proc_macro2::Ident) -> tt::Ident<TokenId> {
-        tt::Ident {
-            text: ident.to_string().into(),
-            span: TokenId::unspecified(),
-        }
-    }
-
-    fn from_proc_macro2_punct(punct: &proc_macro2::Punct) -> tt::Punct<TokenId> {
-        tt::Punct {
-            char: punct.as_char(),
-            spacing: from_proc_macro2_spacing(punct.spacing()),
-            span: TokenId::unspecified(),
-        }
-    }
-
-    fn from_proc_macro2_spacing(spacing: proc_macro2::Spacing) -> tt::Spacing {
-        match spacing {
-            proc_macro2::Spacing::Alone => tt::Spacing::Alone,
-            proc_macro2::Spacing::Joint => tt::Spacing::Joint,
-        }
-    }
-
-    fn from_proc_macro2_literal(lit: &proc_macro2::Literal) -> tt::Literal<TokenId> {
-        tt::Literal {
-            text: lit.to_string().into(),
-            span: TokenId::unspecified(),
-        }
+    span::Span {
+        range: TextRange::empty(TextSize::new(0)),
+        anchor,
+        ctx: span::SyntaxContext::root(Edition::CURRENT),
     }
 }
 
-fn from_ra_subtree(subtree: &tt::Subtree<impl Copy>) -> proc_macro2::Group {
-    return proc_macro2::Group::new(
-        from_ra_delimiter(subtree.delimiter),
-        subtree.token_trees.iter().map(from_ra_token_tree).collect(),
-    );
+fn from_proc_macro2_group(group: &proc_macro2::Group) -> tt::TopSubtree<span::Span> {
+    let span = make_dummy_span();
+    let mut builder = tt::TopSubtreeBuilder::new(tt::Delimiter::invisible_spanned(span));
 
-    fn from_ra_delimiter(delimiter: tt::Delimiter<impl Copy>) -> proc_macro2::Delimiter {
-        match delimiter.kind {
+    fn process_stream(
+        builder: &mut tt::TopSubtreeBuilder<span::Span>,
+        stream: proc_macro2::TokenStream,
+        span: span::Span,
+    ) {
+        for tt in stream.into_iter() {
+            process_token_tree(builder, &tt, span);
+        }
+    }
+
+    fn process_token_tree(
+        builder: &mut tt::TopSubtreeBuilder<span::Span>,
+        tt: &proc_macro2::TokenTree,
+        span: span::Span,
+    ) {
+        match tt {
+            proc_macro2::TokenTree::Group(g) => {
+                let kind = match g.delimiter() {
+                    proc_macro2::Delimiter::Parenthesis => tt::DelimiterKind::Parenthesis,
+                    proc_macro2::Delimiter::Brace => tt::DelimiterKind::Brace,
+                    proc_macro2::Delimiter::Bracket => tt::DelimiterKind::Bracket,
+                    proc_macro2::Delimiter::None => tt::DelimiterKind::Invisible,
+                };
+                builder.open(kind, span);
+                process_stream(builder, g.stream(), span);
+                builder.close(span);
+                builder.remove_last_subtree_if_invisible();
+            }
+            proc_macro2::TokenTree::Ident(i) => {
+                let text = i.to_string();
+                let ident = tt::Ident::new(&text, span);
+                builder.push(tt::Leaf::Ident(ident));
+            }
+            proc_macro2::TokenTree::Punct(p) => {
+                let punct = tt::Punct {
+                    char: p.as_char(),
+                    spacing: match p.spacing() {
+                        proc_macro2::Spacing::Alone => tt::Spacing::Alone,
+                        proc_macro2::Spacing::Joint => tt::Spacing::Joint,
+                    },
+                    span,
+                };
+                builder.push(tt::Leaf::Punct(punct));
+            }
+            proc_macro2::TokenTree::Literal(l) => {
+                let lit = tt::token_to_literal(&l.to_string(), span);
+                builder.push(tt::Leaf::Literal(lit));
+            }
+        }
+    }
+
+    process_stream(&mut builder, group.stream(), span);
+    builder.build()
+}
+
+fn from_ra_top_subtree(subtree: &tt::TopSubtree<impl Copy>) -> proc_macro2::Group {
+    fn delim_to_proc(d: tt::Delimiter<impl Copy>) -> proc_macro2::Delimiter {
+        match d.kind {
             DelimiterKind::Parenthesis => proc_macro2::Delimiter::Parenthesis,
             DelimiterKind::Brace => proc_macro2::Delimiter::Brace,
             DelimiterKind::Bracket => proc_macro2::Delimiter::Bracket,
@@ -222,32 +248,100 @@ fn from_ra_subtree(subtree: &tt::Subtree<impl Copy>) -> proc_macro2::Group {
         }
     }
 
-    fn from_ra_token_tree(tt: &tt::TokenTree<impl Copy>) -> proc_macro2::TokenTree {
-        match tt {
-            tt::TokenTree::Subtree(s) => proc_macro2::TokenTree::Group(from_ra_subtree(s)),
-            tt::TokenTree::Leaf(Leaf::Ident(i)) => from_ra_ident(i).into(),
-            &tt::TokenTree::Leaf(Leaf::Punct(p)) => from_ra_punct(p).into(),
-            tt::TokenTree::Leaf(Leaf::Literal(l)) => from_ra_literal(l).into(),
+    fn tt_element_to_token_tree<S: Copy>(el: TtElement<'_, S>) -> proc_macro2::TokenTree {
+        match el {
+            TtElement::Subtree(sub, iter) => {
+                let mut ts = proc_macro2::TokenStream::new();
+                for child in iter {
+                    ts.extend(std::iter::once(tt_element_to_token_tree(child)));
+                }
+                proc_macro2::TokenTree::Group(proc_macro2::Group::new(
+                    delim_to_proc(sub.delimiter),
+                    ts,
+                ))
+            }
+            TtElement::Leaf(leaf) => match leaf {
+                tt::Leaf::Ident(i) => {
+                    let mut name = i.sym.to_string();
+                    if i.is_raw.yes() {
+                        name = format!("r#{}", name);
+                    }
+                    proc_macro2::Ident::new(&name, proc_macro2::Span::call_site()).into()
+                }
+                tt::Leaf::Punct(p) => {
+                    let spacing = match p.spacing {
+                        tt::Spacing::Alone => proc_macro2::Spacing::Alone,
+                        tt::Spacing::Joint | tt::Spacing::JointHidden => {
+                            proc_macro2::Spacing::Joint
+                        }
+                    };
+                    proc_macro2::Punct::new(p.char, spacing).into()
+                }
+                tt::Leaf::Literal(l) => {
+                    let sym = l.symbol.to_string();
+                    let suff = l.suffix.as_ref().map(|s| s.to_string()).unwrap_or_default();
+                    match l.kind {
+                        tt::LitKind::Str => proc_macro2::Literal::string(&sym).into(),
+                        tt::LitKind::StrRaw(n) => {
+                            let hashes = "#".repeat(n as usize);
+                            let s = format!("r{hashes}\"{sym}\"{hashes}");
+                            syn::parse_str(&s).unwrap_or_else(|e| {
+                                panic!("could not parse raw string literal {}: {}", s, e)
+                            })
+                        }
+                        tt::LitKind::ByteStr => {
+                            let s = format!("b\"{}\"{}", sym, suff);
+                            syn::parse_str(&s).unwrap_or_else(|e| {
+                                panic!("could not parse byte string literal {}: {}", s, e)
+                            })
+                        }
+                        tt::LitKind::ByteStrRaw(n) => {
+                            let hashes = "#".repeat(n as usize);
+                            let s = format!("br{hashes}\"{sym}\"{hashes}");
+                            syn::parse_str(&s).unwrap_or_else(|e| {
+                                panic!("could not parse raw byte string literal {}: {}", s, e)
+                            })
+                        }
+                        tt::LitKind::CStr => {
+                            let s = format!("c\"{}\"{}", sym, suff);
+                            syn::parse_str(&s).unwrap_or_else(|e| {
+                                panic!("could not parse cstr literal {}: {}", s, e)
+                            })
+                        }
+                        tt::LitKind::CStrRaw(n) => {
+                            let hashes = "#".repeat(n as usize);
+                            let s = format!("cr{hashes}\"{sym}\"{hashes}");
+                            syn::parse_str(&s).unwrap_or_else(|e| {
+                                panic!("could not parse raw cstr literal {}: {}", s, e)
+                            })
+                        }
+                        tt::LitKind::Char => {
+                            let s = format!("'{}'{}", sym, suff);
+                            syn::parse_str(&s).unwrap_or_else(|e| {
+                                panic!("could not parse char literal {}: {}", s, e)
+                            })
+                        }
+                        tt::LitKind::Byte => {
+                            let s = format!("b'{}'{}", sym, suff);
+                            syn::parse_str(&s).unwrap_or_else(|e| {
+                                panic!("could not parse byte literal {}: {}", s, e)
+                            })
+                        }
+                        tt::LitKind::Integer | tt::LitKind::Float | tt::LitKind::Err(()) => {
+                            let s = format!("{}{}", sym, suff);
+                            syn::parse_str(&s).unwrap_or_else(|e| {
+                                panic!("could not parse numeric literal {}: {}", s, e)
+                            })
+                        }
+                    }
+                }
+            },
         }
     }
 
-    fn from_ra_ident(ident: &tt::Ident<impl Copy>) -> proc_macro2::Ident {
-        proc_macro2::Ident::new(&ident.text, proc_macro2::Span::call_site())
+    let mut ts = proc_macro2::TokenStream::new();
+    for tt in subtree.token_trees().iter() {
+        ts.extend(std::iter::once(tt_element_to_token_tree(tt)));
     }
-
-    fn from_ra_punct(punct: tt::Punct<impl Copy>) -> proc_macro2::Punct {
-        proc_macro2::Punct::new(punct.char, from_ra_spacing(punct.spacing))
-    }
-
-    fn from_ra_spacing(spacing: tt::Spacing) -> proc_macro2::Spacing {
-        match spacing {
-            tt::Spacing::Alone => proc_macro2::Spacing::Alone,
-            tt::Spacing::Joint => proc_macro2::Spacing::Joint,
-        }
-    }
-
-    fn from_ra_literal(lit: &tt::Literal<impl Copy>) -> proc_macro2::Literal {
-        syn::parse_str(&lit.text)
-            .unwrap_or_else(|e| panic!("could not parse {:?} as a literal: {}", &lit.text, e))
-    }
+    proc_macro2::Group::new(delim_to_proc(subtree.top_subtree().delimiter), ts)
 }
