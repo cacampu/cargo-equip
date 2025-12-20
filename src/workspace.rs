@@ -706,6 +706,24 @@ pub(crate) trait PackageIdExt {
 
 impl PackageIdExt for cm::PackageId {
     fn mask_path(&self) -> String {
+        // 新しい形式: path+file:///path/to/crate#name@version
+        if self.repr.starts_with("path+file:") {
+            if let Some(hash_pos) = self.repr.find('#') {
+                let prefix = "path+file:";
+                let path_start = prefix.len();
+
+                let path_part = &self.repr[path_start..hash_pos];
+                let suffix = &self.repr[hash_pos..];
+
+                return format!(
+                    "{}{}{}",
+                    prefix,
+                    "█".repeat(path_part.chars().count()),
+                    suffix
+                );
+            }
+        }
+        // 従来の形式（念のため残しておく）: name version (path+...)
         if_chain! {
             if let [s1, s2] = *self.repr.split(" (path+").collect::<Vec<_>>();
             if s2.ends_with(')');
