@@ -180,7 +180,7 @@ fn users(package: &cm::Package, cache_dir: &Path) -> anyhow::Result<BTreeSet<Use
         fn curl(url: &str, cwd: &Path) -> anyhow::Result<String> {
             let curl_exe = which::which("curl").map_err(|_| anyhow!("command not found: curl"))?;
             ProcessBuilder::new(curl_exe)
-                .args(&[url, "-L"])
+                .args(&[url, "-L", "--user-agent", "cargo-equip"]) // User-Agentを追加
                 .cwd(cwd)
                 .read_stdout()
         }
