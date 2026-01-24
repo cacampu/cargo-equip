@@ -816,7 +816,8 @@ impl Edition {
     fn default_resolver_behavior(self) -> ResolveBehavior {
         match self {
             Self::Edition2015 | Self::Edition2018 => ResolveBehavior::V1,
-            Self::Edition2021 | Self::Edition2024 => ResolveBehavior::V2,
+            Self::Edition2021 => ResolveBehavior::V2,
+            Self::Edition2024 => ResolveBehavior::V3,
         }
     }
 }
@@ -827,4 +828,6 @@ pub(crate) enum ResolveBehavior {
     V1,
     #[serde(rename = "2")]
     V2,
+    #[serde(rename = "3")]
+    V3,
 }
