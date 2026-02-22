@@ -25,6 +25,7 @@ OPTIONS:
         --exclude <SPEC>...                           Exclude library crates from bundling
         --exclude-atcoder-crates                      Alias for `--exclude {crates available on AtCoder}`
         --exclude-atcoder-202301-crates               Alias for `--exclude {crates available on AtCoder 202301}`
+        --exclude-atcoder-202510-crates               Alias for `--exclude {crates available on AtCoder 202510}`
         --exclude-codingame-crates                    Alias for `--exclude {crates available on CodinGame}`
         --mine <DOMAIN_AND_USERNAME>...               Do not include license and copyright notices for the users
         --toolchain <TOOLCHAIN>                       [Deprecated] Alias for `--toolchain-for-udeps`

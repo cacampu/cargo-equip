@@ -399,6 +399,7 @@ impl MetadataExt for cm::Metadata {
                 [cm::DependencyKind::Normal, cm::DependencyKind::Development].contains(kind)
             })
             .flat_map(|cm::Dependency { rename, .. }| rename)
+            .map(|r| r.replace('-', "_"))
             .collect::<HashSet<_>>();
 
         let preds = {
@@ -463,6 +464,11 @@ impl MetadataExt for cm::Metadata {
             bail!("this tool requires Rust 1.41+ for calculating dependencies");
         }
 
+        let cargo_udeps_outcome_normalized = cargo_udeps_outcome
+            .iter()
+            .map(|s| s.replace('-', "_"))
+            .collect::<HashSet<_>>();
+
         let mut deps = nodes[package_id]
             .deps
             .iter()
@@ -479,7 +485,9 @@ impl MetadataExt for cm::Metadata {
                 } else {
                     (lib_target.crate_name(), &lib_package.name)
                 };
-                if cargo_udeps_outcome.contains(lib_name_in_toml) {
+                if cargo_udeps_outcome_normalized
+                    .contains(&lib_name_in_toml.replace('-', "_"))
+                {
                     return None;
                 }
                 Some((&lib_package.id, (lib_target, lib_extern_crate_name)))
