@@ -169,14 +169,20 @@ pub(crate) fn cargo_check_using_current_lockfile_and_cache(
     temp_manifest["dependencies"] = orig_manifest["dependencies"].clone();
     temp_manifest["dev-dependencies"] = orig_manifest["dev-dependencies"].clone();
 
-    let renames = package
+    // Maps normalized node_dep.name (underscores) → original TOML key (may have hyphens).
+    // Covers both renamed deps (`cplib-binary-search = { package = "..." }`)
+    // and plain deps (`binary-search = ...`).
+    let dep_toml_key = package
         .dependencies
         .iter()
         .filter(|cm::Dependency { kind, .. }| {
             [cm::DependencyKind::Normal, cm::DependencyKind::Development].contains(kind)
         })
-        .flat_map(|cm::Dependency { rename, .. }| rename)
-        .collect::<HashSet<_>>();
+        .map(|dep| {
+            let key = dep.rename.as_deref().unwrap_or(&dep.name).to_owned();
+            (key.replace('-', "_"), key)
+        })
+        .collect::<HashMap<_, _>>();
 
     let modify_dependencies = |table: &mut toml_edit::Table| {
         for name_in_toml in metadata
@@ -190,12 +196,11 @@ pub(crate) fn cargo_check_using_current_lockfile_and_cache(
             .deps
             .iter()
             .filter(|cm::NodeDep { pkg, .. }| !exclude.iter().any(|s| s.matches(&metadata[pkg])))
-            .map(|cm::NodeDep { name, pkg, .. }| {
-                if renames.contains(&name) {
-                    name
-                } else {
-                    &metadata[pkg].name
-                }
+            .map(|cm::NodeDep { name, pkg, .. }| -> &str {
+                dep_toml_key
+                    .get(name.as_str())
+                    .map(|s| s.as_str())
+                    .unwrap_or(&metadata[pkg].name)
             })
         {
             table.remove(name_in_toml);
