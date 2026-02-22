@@ -223,6 +223,40 @@ pub(crate) fn cargo_check_using_current_lockfile_and_cache(
         modify_dependencies(table);
     }
 
+    // Resolve `workspace = true` entries that remain after removing bundled deps.
+    // Excluded deps are kept in the temp manifest but the temp dir has no workspace
+    // root, so `workspace = true` must be expanded to the actual dep spec.
+    {
+        let ws_manifest =
+            cargo_util::paths::read(metadata.workspace_root.join("Cargo.toml").as_ref())?
+                .parse::<toml_edit::Document>()?;
+        let resolve_workspace_deps = |table: &mut toml_edit::Table| {
+            let ws_keys: Vec<String> = table
+                .iter()
+                .filter(|(_, v)| {
+                    v["workspace"]
+                        .as_value()
+                        .and_then(|v| v.as_bool())
+                        == Some(true)
+                })
+                .map(|(k, _)| k.to_owned())
+                .collect();
+            for key in &ws_keys {
+                let ws_dep =
+                    ws_manifest["workspace"]["dependencies"][key.as_str()].clone();
+                if !ws_dep.is_none() {
+                    table[key.as_str()] = ws_dep;
+                }
+            }
+        };
+        if let toml_edit::Item::Table(table) = &mut temp_manifest["dependencies"] {
+            resolve_workspace_deps(table);
+        }
+        if let toml_edit::Item::Table(table) = &mut temp_manifest["dev-dependencies"] {
+            resolve_workspace_deps(table);
+        }
+    }
+
     cargo_util::paths::write(
         temp_pkg.path().join("Cargo.toml"),
         temp_manifest.to_string(),
