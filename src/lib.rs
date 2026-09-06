@@ -3,6 +3,7 @@
 #![recursion_limit = "256"]
 
 mod cargo_udeps;
+mod pkg_spec;
 mod preset_crates;
 mod process;
 mod ra_proc_macro;
@@ -12,6 +13,7 @@ pub mod shell;
 mod toolchain;
 mod workspace;
 
+use crate::pkg_spec::PkgSpec;
 use crate::{
     ra_proc_macro::ProcMacroExpander,
     rust::CodeEdit,
@@ -26,7 +28,6 @@ use cargo_metadata as cm;
 use clap::{Args, Parser, ValueEnum};
 use indoc::indoc;
 use itertools::{iproduct, Itertools as _};
-use krates::PkgSpec;
 use maplit::{btreeset, hashmap, hashset};
 use petgraph::{
     graph::{Graph, NodeIndex},
@@ -732,7 +733,7 @@ fn bundle(
                 let lib_package: &cm::Package = &metadata[lib_package];
 
                 if let Some(names) = proc_macro_names.get(&lib_package.id) {
-                    debug_assert_eq!(["proc-macro".to_owned()], *lib_target.kind);
+                    debug_assert!(lib_target.is_proc_macro());
                     return Ok(bundle_proc_macro_crate(
                         lib_package,
                         pseudo_extern_crate_name,
@@ -803,7 +804,7 @@ fn bundle(
         code = rustfmt::rustfmt(
             &metadata.workspace_root,
             &code,
-            &root_crate.package().edition,
+            root_crate.package().edition.as_str(),
         )?;
     }
 
@@ -863,7 +864,12 @@ fn bundle_lib<'a>(
                 .collect::<anyhow::Result<_>>()?
         })?;
     if resolve_cfgs {
-        edit.resolve_cfgs(&resolve_node.features)?;
+        let features = resolve_node
+            .features
+            .iter()
+            .map(|f| f.as_str())
+            .collect::<Vec<_>>();
+        edit.resolve_cfgs(&features)?;
     }
     if remove.contains(&Remove::Docs) {
         edit.allow_missing_docs();

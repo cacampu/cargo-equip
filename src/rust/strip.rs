@@ -28,7 +28,7 @@ use syn::{
 };
 
 impl<'opt> CodeEdit<'opt> {
-    pub(crate) fn resolve_cfgs(&mut self, features: &[String]) -> anyhow::Result<()> {
+    pub(crate) fn resolve_cfgs(&mut self, features: &[&str]) -> anyhow::Result<()> {
         self.apply()?;
         Visitor {
             replacements: &mut self.replacements,
@@ -39,7 +39,7 @@ impl<'opt> CodeEdit<'opt> {
 
         struct Visitor<'a> {
             replacements: &'a mut BTreeMap<(LineColumn, LineColumn), String>,
-            features: &'a [String],
+            features: &'a [&'a str],
         }
 
         impl Visitor<'_> {
@@ -70,7 +70,7 @@ impl<'opt> CodeEdit<'opt> {
                             }
                             cfg_expr::Predicate::Flag("cargo_equip") => Some(true),
                             cfg_expr::Predicate::Feature(feature) => {
-                                Some(self.features.contains(&(*feature).to_owned()))
+                                Some(self.features.contains(feature))
                             }
                             _ => None,
                         });
@@ -373,6 +373,75 @@ mod tests {
 
     thread_local! {
         static DUMMY_MOD_NAME: Ident = Ident::new("__", Span::call_site());
+    }
+
+    /// `resolve_cfgs` had no test at all, and the feature list it takes is the one
+    /// place the bundler feeds `cargo_metadata` data into the code rewriter, so it
+    /// is the part most likely to break silently when that dependency moves.
+    #[test]
+    fn resolve_cfgs() -> anyhow::Result<()> {
+        fn test(features: &[&str], input: &str, expected: &str) -> anyhow::Result<()> {
+            DUMMY_MOD_NAME.with(|dummy_mod_name| {
+                let mut edit = CodeEdit::from_code(dummy_mod_name, input)?;
+                edit.resolve_cfgs(features)?;
+                assert_eq!(expected, edit.finish()?);
+                Ok(())
+            })
+        }
+
+        // An enabled feature: the `#[cfg]` goes away, the item stays.
+        test(
+            &["std"],
+            r#"#[cfg(feature = "std")]
+struct Enabled;
+"#,
+            r#"
+struct Enabled;
+"#,
+        )?;
+
+        // A feature that is off takes the whole item with it.
+        test(
+            &["std"],
+            r#"#[cfg(feature = "nope")]
+struct Disabled;
+
+struct Kept;
+"#,
+            r#"
+
+
+struct Kept;
+"#,
+        )?;
+
+        // `test` is always false in the bundled output, `cargo_equip` always true.
+        test(
+            &[],
+            r#"#[cfg(test)]
+mod tests {}
+
+#[cfg(cargo_equip)]
+struct Marked;
+"#,
+            r#"
+
+
+
+struct Marked;
+"#,
+        )?;
+
+        // An unknown predicate is left alone rather than guessed at.
+        test(
+            &[],
+            r#"#[cfg(target_os = "linux")]
+struct Unknown;
+"#,
+            r#"#[cfg(target_os = "linux")]
+struct Unknown;
+"#,
+        )
     }
 
     #[test]

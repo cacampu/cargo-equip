@@ -25,7 +25,7 @@ pub(crate) fn cargo_udeps(
         .arg("--output")
         .arg("json")
         .arg("-p")
-        .arg(&package.name)
+        .arg(package.name.as_str())
         .args(&target.target_option())
         .cwd(cwd)
         .try_inspect(|this| shell.status("Running", this))

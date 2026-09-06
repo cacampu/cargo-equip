@@ -14,8 +14,8 @@
 //! spaces at all. A spec with a URL therefore matches nothing, silently. See
 //! `no_urls_in_presets` below.
 
+use crate::pkg_spec::PkgSpec;
 use anyhow::Context as _;
-use krates::PkgSpec;
 
 pub(crate) const ATCODER: Preset =
     Preset::new("atcoder", include_str!("preset_crates/atcoder.txt"));
@@ -57,9 +57,9 @@ impl Preset {
     pub(crate) fn parse(&self) -> anyhow::Result<Vec<PkgSpec>> {
         self.specs()
             .map(|spec| {
-                spec.parse::<PkgSpec>().with_context(|| {
-                    format!("could not parse `{}` in the `{}` list", spec, self.name)
-                })
+                spec.parse::<PkgSpec>()
+                    .map_err(anyhow::Error::msg)
+                    .with_context(|| format!("in the `{}` list", self.name))
             })
             .collect()
     }

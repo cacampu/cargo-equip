@@ -22,7 +22,7 @@ pub(crate) fn list_proc_macro_dylibs<P: FnMut(&cm::PackageId) -> bool>(
             cm::Message::CompilerArtifact(artifact) => Some(artifact),
             _ => None,
         })
-        .filter(|cm::Artifact { target, .. }| *target.kind == ["proc-macro".to_owned()])
+        .filter(|cm::Artifact { target, .. }| target.is_proc_macro())
         .filter(|cm::Artifact { package_id, .. }| filter(package_id))
         .flat_map(
             |cm::Artifact {

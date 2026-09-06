@@ -58,7 +58,7 @@ fn users(package: &cm::Package, cache_dir: &Path) -> anyhow::Result<BTreeSet<Use
         if source.is_crates_io() {
             match cache
                 .crates_io
-                .entry(package.name.clone())
+                .entry(package.name.to_string())
                 .or_default()
                 .entry(package.version.clone())
             {
@@ -83,7 +83,7 @@ fn users(package: &cm::Package, cache_dir: &Path) -> anyhow::Result<BTreeSet<Use
         {
             cache
                 .github_com
-                .entry(package.name.clone())
+                .entry(package.name.to_string())
                 .or_default()
                 .entry((*rev).to_owned())
                 .or_default()
@@ -97,7 +97,7 @@ fn users(package: &cm::Package, cache_dir: &Path) -> anyhow::Result<BTreeSet<Use
         {
             cache
                 .gitlab_com
-                .entry(package.name.clone())
+                .entry(package.name.to_string())
                 .or_default()
                 .entry((*rev).to_owned())
                 .or_default()
@@ -228,7 +228,7 @@ fn read(package: &cm::Package, cache_dir: &Path) -> Result<Option<String>, Vec<S
 
                 let cache_path = &cache_dir
                     .join("license-files")
-                    .join(&package.name)
+                    .join(package.name.as_str())
                     .join(&sha1);
 
                 if cache_path.exists() {
