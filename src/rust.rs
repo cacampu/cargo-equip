@@ -5,7 +5,7 @@ use fixedbitset::FixedBitSet;
 use if_chain::if_chain;
 use itertools::Itertools as _;
 use maplit::btreemap;
-use proc_macro2::{LineColumn, Span, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, LineColumn, Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
 use std::{
     borrow::Cow,
@@ -1586,17 +1586,53 @@ impl<'opt> CodeEdit<'opt> {
 
     pub(crate) fn erase_docs(&mut self) -> anyhow::Result<()> {
         return self.erase(
-            |mask, token_stream| syn::parse2(token_stream).map(|f| Visitor(mask).visit_file(&f)),
+            |mask, token_stream| {
+                visit_token_stream(mask, token_stream);
+                Ok(())
+            },
             || "broke the code during erasing doc comments",
         );
 
-        struct Visitor<'a>(&'a mut [FixedBitSet]);
-
-        impl Visit<'_> for Visitor<'_> {
-            fn visit_attribute(&mut self, attr: &'_ Attribute) {
-                if matches!(attr.parse_meta(), Ok(m) if m.path().is_ident("doc")) {
-                    set_span(self.0, attr.span(), true);
+        // Walks the raw token stream instead of a `syn::File` so that doc comments
+        // inside macro bodies (`macro_rules!` definitions, macro invocations) are
+        // erased too. Note that `/// ..` and `//! ..` are lexed into
+        // `#[doc = ".."]` / `#![doc = ".."]` token sequences.
+        fn visit_token_stream(mask: &mut [FixedBitSet], token_stream: TokenStream) {
+            let tts = token_stream.into_iter().collect::<Vec<_>>();
+            let mut i = 0;
+            while i < tts.len() {
+                if let Some(len) = doc_attr_len(&tts[i..]) {
+                    for tt in &tts[i..i + len] {
+                        set_span(mask, tt.span(), true);
+                    }
+                    i += len;
+                    continue;
                 }
+                if let TokenTree::Group(group) = &tts[i] {
+                    visit_token_stream(mask, group.stream());
+                }
+                i += 1;
+            }
+        }
+
+        /// Returns the number of leading token trees forming `#[doc ..]` or `#![doc ..]`.
+        fn doc_attr_len(tts: &[TokenTree]) -> Option<usize> {
+            let (rest, len) = match tts {
+                [TokenTree::Punct(p), rest @ ..] if p.as_char() == '#' => (rest, 2),
+                _ => return None,
+            };
+            let (rest, len) = match rest {
+                [TokenTree::Punct(p), rest @ ..] if p.as_char() == '!' => (rest, len + 1),
+                _ => (rest, len),
+            };
+            match rest {
+                [TokenTree::Group(g), ..] if g.delimiter() == Delimiter::Bracket => {
+                    match g.stream().into_iter().next() {
+                        Some(TokenTree::Ident(i)) if i == "doc" => Some(len),
+                        _ => None,
+                    }
+                }
+                _ => None,
             }
         }
     }
@@ -1717,6 +1753,48 @@ struct Foo;
 fn foo() {}
 "#,
             r#"fn foo() {}
+"#,
+        )?;
+
+        test(
+            r#"#[doc = "aaaaa"]
+struct Foo;
+
+#[doc(hidden)]
+struct Bar;
+"#,
+            r#"struct Foo;
+
+              
+struct Bar;
+"#,
+        )?;
+
+        // doc comments inside macro bodies are not visited by `syn::visit`
+        test(
+            r#"macro_rules! m {
+    () => {
+        /// ccccc
+        pub struct Baz;
+    };
+}
+
+m! {
+    #[doc = "ddddd"]
+    pub struct Qux;
+}
+"#,
+            r#"macro_rules! m {
+    () => {
+                 
+        pub struct Baz;
+    };
+}
+
+m! {
+                    
+    pub struct Qux;
+}
 "#,
         )
     }

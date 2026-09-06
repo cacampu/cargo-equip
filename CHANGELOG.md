@@ -8,6 +8,12 @@
 
 This is a personal fork and is not released to crates.io. See the git history for changes.
 
+### Fixed
+
+- `--remove docs` now also erases doc attributes inside macro bodies (`macro_rules!`
+  definitions and macro invocations), which the previous `syn`-based visitor did not
+  descend into.
+
 ## [0.20.1] - 2023-08-06Z
 
 ### Fixed
