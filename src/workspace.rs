@@ -9,7 +9,7 @@ use if_chain::if_chain;
 use indoc::indoc;
 use itertools::Itertools as _;
 use krates::PkgSpec;
-use rand::Rng as _;
+use rand::RngExt as _;
 use serde::Deserialize;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -114,9 +114,9 @@ pub(crate) fn cargo_check_using_current_lockfile_and_cache(
     code: &str,
 ) -> anyhow::Result<()> {
     let package_name = {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let suf = (0..16)
-            .map(|_| match rng.gen_range(0..=35) {
+            .map(|_| match rng.random_range(0..=35) {
                 n @ 0..=25 => b'a' + n,
                 n @ 26..=35 => b'0' + n - 26,
                 _ => unreachable!(),

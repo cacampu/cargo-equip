@@ -16,6 +16,12 @@ This is a personal fork and is not released to crates.io. See the git history fo
 
 ### Changed
 
+- Bumped 12 dependencies across major versions: `itertools` 0.10 → 0.15, `indoc`
+  1 → 2, `which` 4 → 8, `petgraph` 0.6 → 0.8, `strum` 0.25 → 0.28, `spdx` 0.6 →
+  0.13, `cfg-expr` 0.9 → 0.20, `fixedbitset` 0.4 → 0.5, `rand` 0.8 → 0.10,
+  `derive_more` 0.99 → 2.1, plus `tempfile` and `termcolor`. Only `rand`
+  (`Rng` → `RngExt`, `gen_range` → `random_range`) and `derive_more`
+  (`#[display(fmt = ..)]` → `#[display(..)]`) needed code changes.
 - Replaced the three unmaintained dependencies. `atty` (which also carried
   RUSTSEC-2021-0145) became `std::io::IsTerminal`, `dirs-next` became `dirs`, and
   `structopt` became clap 4. Dropping `structopt` also removed `clap 2` and

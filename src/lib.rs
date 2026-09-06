@@ -320,7 +320,7 @@ impl FromStr for User {
 /// The name is kept as a `String` rather than a `syn::Ident` because clap requires
 /// argument types to be `Clone + Send + Sync`, and `syn::Ident` is none of those.
 #[derive(Clone, Debug, derive_more::Display)]
-#[display(fmt = "crate::{}", _0)]
+#[display("crate::{}", _0)]
 pub struct CrateSinglePath(String);
 
 impl CrateSinglePath {
