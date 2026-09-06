@@ -1,8 +1,17 @@
 use std::{
     fmt,
-    io::{self, Sink, Write},
+    io::{self, IsTerminal, Sink, Write},
 };
-use termcolor::{Color, ColorSpec, NoColor, StandardStream, WriteColor};
+use termcolor::{Color, ColorChoice, ColorSpec, NoColor, StandardStream, WriteColor};
+
+/// Colorize only when the stream is a terminal, matching what `atty` used to tell us.
+fn color_choice(stream: &impl IsTerminal) -> ColorChoice {
+    if stream.is_terminal() {
+        ColorChoice::Auto
+    } else {
+        ColorChoice::Never
+    }
+}
 
 pub struct Shell {
     output: ShellOut,
@@ -106,16 +115,8 @@ enum ShellOut {
 impl ShellOut {
     fn stream() -> Self {
         Self::Stream {
-            stdout: StandardStream::stdout(if atty::is(atty::Stream::Stdout) {
-                termcolor::ColorChoice::Auto
-            } else {
-                termcolor::ColorChoice::Never
-            }),
-            stderr: StandardStream::stderr(if atty::is(atty::Stream::Stderr) {
-                termcolor::ColorChoice::Auto
-            } else {
-                termcolor::ColorChoice::Never
-            }),
+            stdout: StandardStream::stdout(color_choice(&io::stdout())),
+            stderr: StandardStream::stderr(color_choice(&io::stderr())),
         }
     }
 
