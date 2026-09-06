@@ -29,6 +29,22 @@ This is a personal fork and is not released to crates.io. See the git history fo
 
 ### Changed
 
+- Dropped the `krates` dependency. Only `PkgSpec` was ever used from it, and krates
+  0.21 stopped re-exporting `cargo_metadata` in favour of its own metadata types, so
+  the type now lives in `src/pkg_spec.rs`. It accepts `name`, `name@version` and the
+  older `name:version`, and rejects a registry URL outright — that form silently
+  matched nothing and is what broke the `--exclude-*` aliases.
+- The preset lists are now written as `name@version`, matching what `cargo pkgid` and
+  `cargo metadata` emit and the SPEC table in `cargo help pkgid`. A test round-trips
+  every entry through `PkgSpec` so the files cannot drift back.
+- Updated `cargo_metadata` 0.14 → 0.23. `TargetKind` is an enum now, `PackageName`
+  and `Edition` are newtypes, and `Node::features` holds `FeatureName`. `Target` also
+  gained inherent `is_lib`/`is_bin`/… methods that shadowed the ones in `TargetExt`
+  with *different* semantics (contains-kind vs exactly-kind); the duplicates were
+  removed in favour of cargo_metadata's.
+- `CodeEdit::resolve_cfgs` takes `&[&str]` rather than `&[String]`, keeping
+  `src/rust/` free of `cargo_metadata` types.
+
 - Bumped 12 dependencies across major versions: `itertools` 0.10 → 0.15, `indoc`
   1 → 2, `which` 4 → 8, `petgraph` 0.6 → 0.8, `strum` 0.25 → 0.28, `spdx` 0.6 →
   0.13, `cfg-expr` 0.9 → 0.20, `fixedbitset` 0.4 → 0.5, `rand` 0.8 → 0.10,

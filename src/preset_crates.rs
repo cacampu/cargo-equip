@@ -68,6 +68,8 @@ impl Preset {
 #[cfg(test)]
 mod tests {
     use super::{Preset, ATCODER, ATCODER_202301, ATCODER_202510, CODINGAME, YUKICODER};
+    use crate::pkg_spec::PkgSpec;
+    use pretty_assertions::assert_eq;
 
     const ALL: &[Preset] = &[
         ATCODER,
@@ -87,20 +89,24 @@ mod tests {
         Ok(())
     }
 
-    /// A spec carrying a registry URL parses fine but matches nothing, so the whole
-    /// list becomes a silent no-op. The lists used to be written that way and the
-    /// `--exclude-*` aliases had quietly stopped excluding anything.
+    /// Every entry must already be written the way `PkgSpec` prints it, so the lists
+    /// stay in one form. Round-tripping catches both ways they have drifted before: a
+    /// registry URL fails to parse at all, and the older `name:version` spelling comes
+    /// back as `name@version` and no longer matches the file.
     #[test]
-    fn no_urls_in_presets() {
+    fn presets_are_canonical() -> anyhow::Result<()> {
         for preset in ALL {
             for spec in preset.specs() {
-                assert!(
-                    !spec.contains("://"),
-                    "`{}` in `{}` carries a URL, which never matches any package",
+                let parsed = spec.parse::<PkgSpec>().map_err(anyhow::Error::msg)?;
+                assert_eq!(
+                    parsed.to_string(),
+                    spec,
+                    "`{}` in `{}` is not in canonical form",
                     spec,
                     preset.name,
                 );
             }
         }
+        Ok(())
     }
 }

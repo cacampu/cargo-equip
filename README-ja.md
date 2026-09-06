@@ -20,7 +20,7 @@
 
 - 複数のクレートのバンドル
 - cargo-udepsにより使っているライブラリだけバンドル
-- 一部のクレートを除外 (`--exclude-{atcoder, codingame}-crates`),
+- 一部のクレートを除外 (`--exclude-{atcoder, atcoder-202301, atcoder-202510, codingame, yukicoder}-crates`)
 - 手続き型マクロの展開 (`bin`内のみ)
 - `#[macro_export]`のスコープを保持
 - `#[cfg(..)]`の解決
