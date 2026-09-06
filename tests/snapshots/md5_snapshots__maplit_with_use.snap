@@ -1,6 +1,0 @@
----
-source: tests/md5-snapshots.rs
-expression: output
-
----
-0de412d5801015a6ddcb74b7cc7dedd1

@@ -14,6 +14,15 @@ This is a personal fork and is not released to crates.io. See the git history fo
   definitions and macro invocations), which the previous `syn`-based visitor did not
   descend into.
 
+### Changed
+
+- Replaced the md5 snapshot tests with end-to-end tests that compile the bundled
+  output and run it, asserting on its exit status and stdout. The md5 assertions only
+  checked "byte-identical to the last recorded run", so they broke on every dependency
+  bump without saying what had changed.
+- `CARGO_EQUIP_DUMP_DIR` dumps the bundled code from the test suite, so output changes
+  can be diffed as text.
+
 ## [0.20.1] - 2023-08-06Z
 
 ### Fixed
