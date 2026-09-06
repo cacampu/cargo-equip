@@ -23,6 +23,7 @@ use crate::{
 };
 use anyhow::Context as _;
 use cargo_metadata as cm;
+use clap::{Args, Parser, ValueEnum};
 use indoc::indoc;
 use itertools::{iproduct, Itertools as _};
 use krates::PkgSpec;
@@ -41,167 +42,171 @@ use std::{
     rc::Rc,
     str::FromStr,
 };
-use structopt::{clap::AppSettings, StructOpt};
 
 // We need to prepend " " to `long_help`s.
 // https://github.com/BurntSushi/ripgrep/blob/9eddb71b8e86a04d7048b920b9b50a2e97068d03/crates/core/app.rs#L533-L539
 
 #[allow(clippy::large_enum_variant)]
-#[derive(StructOpt, Debug)]
-#[structopt(
-    author("Ryo Yamashita <qryxip@gmail.com>"),
-    about("Please run as `cargo equip`, not `cargo-equip`."),
-    bin_name("cargo"),
-    global_settings(&[AppSettings::DeriveDisplayOrder, AppSettings::UnifiedHelpMessage])
+#[derive(Parser, Debug)]
+// `DeriveDisplayOrder` and `UnifiedHelpMessage` were clap 2 settings; both are the
+// only behavior clap 4 has, so they are gone rather than translated.
+#[command(
+    author = "Ryo Yamashita <qryxip@gmail.com>",
+    about = "Please run as `cargo equip`, not `cargo-equip`.",
+    bin_name = "cargo",
+    version
 )]
 pub enum Opt {
-    #[structopt(
-        about(indoc! {r#"
+    #[command(
+        version,
+        // Without this the version line would read `cargo-equip-equip`, since clap
+        // joins the bin name and the subcommand name. It does not affect matching.
+        display_name = "cargo-equip",
+        about = indoc! {r#"
 
             A Cargo subcommand to bundle your code into one `.rs` file for competitive programming.
 
             Use -h for short descriptions and --help for more detials.
-        "#}),
-        author("Ryo Yamashita <qryxip@gmail.com>"),
-        usage(
-            r#"cargo equip [OPTIONS]
+        "#},
+        author = "Ryo Yamashita <qryxip@gmail.com>",
+        override_usage = r#"cargo equip [OPTIONS]
     cargo equip [OPTIONS] --lib
     cargo equip [OPTIONS] --bin <NAME>
     cargo equip [OPTIONS] --example <NAME>
-    cargo equip [OPTIONS] --src <PATH>"#,
-        )
+    cargo equip [OPTIONS] --src <PATH>"#
     )]
     Equip(OptEquip),
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Args, Debug)]
 pub struct OptEquip {
     /// Bundle the lib/bin/example target and its dependencies
-    #[structopt(
+    #[arg(
         long,
-        value_name("PATH"),
-        conflicts_with_all(&["lib", "bin", "example"]),
-        long_help(indoc! {r#"
+        value_name = "PATH",
+        conflicts_with_all = ["lib", "bin", "example"],
+        long_help = indoc! {r#"
             Bundle the lib/bin/example target and its dependencies.
 
             This option is intended to be used from editors such as VSCode. Use `--lib`, `--bin` or `--example` for normal usage.
-        "#})
+        "#}
     )]
     src: Option<PathBuf>,
 
     /// Bundle the library and its dependencies
-    #[structopt(long, conflicts_with_all(&["bin", "example"]))]
+    #[arg(long, conflicts_with_all = ["bin", "example"])]
     lib: bool,
 
     /// Bundle the binary and its dependencies
-    #[structopt(long, value_name("NAME"), conflicts_with("example"))]
+    #[arg(long, value_name = "NAME", conflicts_with = "example")]
     bin: Option<String>,
 
     /// Bundle the binary example and its dependencies
-    #[structopt(long, value_name("NAME"))]
+    #[arg(long, value_name = "NAME")]
     example: Option<String>,
 
     /// Path to Cargo.toml
-    #[structopt(long, value_name("PATH"))]
+    #[arg(long, value_name = "PATH")]
     manifest_path: Option<PathBuf>,
 
     /// Exclude library crates from bundling
-    #[structopt(long, value_name("SPEC"))]
-    exclude: Vec<PkgSpec>,
+    #[arg(long, value_name = "SPEC", value_parser = validate_pkg_spec)]
+    exclude: Vec<String>,
 
     /// Alias for `--exclude {crates available on AtCoder}`
-    #[structopt(
+    #[arg(
         long,
-        long_help(Box::leak(
+        long_help = &*Box::leak(
             format!(
                 "Alias for:\n--exclude {}\n ",
                 preset_crates::ATCODER.specs().format("\n          "),
             )
             .into_boxed_str(),
-        ))
+        )
     )]
     exclude_atcoder_crates: bool,
 
     /// Alias for `--exclude {crates available on AtCoder 202301}`
-    #[structopt(
+    #[arg(
         long,
-        long_help(Box::leak(
+        long_help = &*Box::leak(
             format!(
                 "Alias for:\n--exclude {}\n ",
                 preset_crates::ATCODER_202301.specs().format("\n          "),
             )
             .into_boxed_str(),
-        ))
+        )
     )]
     exclude_atcoder_202301_crates: bool,
     /// Alias for `--exclude {crates available on AtCoder 202510}`
-    #[structopt(
+    #[arg(
         long,
-        long_help(Box::leak(
+        long_help = &*Box::leak(
             format!(
                 "Alias for:\n--exclude {}\n ",
                 preset_crates::ATCODER_202510.specs().format("\n          "),
             )
             .into_boxed_str(),
-        ))
+        )
     )]
     exclude_atcoder_202510_crates: bool,
 
     /// Alias for `--exclude {crates available on CodinGame}`
-    #[structopt(
+    #[arg(
         long,
-        long_help(Box::leak(
+        long_help = &*Box::leak(
             format!(
                 "Alias for:\n--exclude {}\n ",
                 preset_crates::CODINGAME.specs().format("\n          "),
             )
             .into_boxed_str(),
-        ))
+        )
     )]
     exclude_codingame_crates: bool,
 
     /// Do not include license and copyright notices for the users
-    #[structopt(
+    #[arg(
         long,
-        value_name("DOMAIN_AND_USERNAME"),
-        long_help(
-            concat!(
-                indoc! {r#"
-                    Do not include license and copyright notices for the users.
+        value_name = "DOMAIN_AND_USERNAME",
+        long_help = concat!(
+            indoc! {r#"
+                Do not include license and copyright notices for the users.
 
-                    Supported formats:
-                    * github.com/{username}
-                    * gitlab.com/{username}
-                "#},
-                ' ',
-            )
+                Supported formats:
+                * github.com/{username}
+                * gitlab.com/{username}
+            "#},
+            ' ',
         )
     )]
     mine: Vec<User>,
 
     /// [Deprecated] Alias for `--toolchain-for-udeps`
-    #[structopt(long, value_name("TOOLCHAIN"), conflicts_with("toolchain_for_udeps"))]
+    #[arg(long, value_name = "TOOLCHAIN", conflicts_with = "toolchain_for_udeps")]
     toolchain: Option<String>,
 
     /// `nightly` toolchain for `cargo-udeps`
-    #[structopt(long, value_name("TOOLCHAIN"), default_value("nightly"))]
+    #[arg(long, value_name = "TOOLCHAIN", default_value = "nightly")]
     toolchain_for_udeps: String,
 
     /// Toolchain for expanding procedural macros
-    #[structopt(long, value_name("TOOLCHAIN"))]
+    #[arg(long, value_name = "TOOLCHAIN")]
     toolchain_for_proc_macro_srv: Option<String>,
 
     /// Expand the libraries to the module
-    #[structopt(long, value_name("MODULE_PATH"), default_value("crate::__cargo_equip"))]
+    #[arg(
+        long,
+        value_name = "MODULE_PATH",
+        default_value = "crate::__cargo_equip"
+    )]
     mod_path: CrateSinglePath,
 
     /// Remove some part [possible values: docs, comments]
-    #[structopt(
+    #[arg(
         long,
-        value_name("REMOVE"),
-        possible_values(Remove::VARIANTS),
-        hide_possible_values(true),
-        long_help(concat!(
+        value_name = "REMOVE",
+        hide_possible_values = true,
+        long_help = concat!(
             indoc! {r#"
                 Removes
                 * doc comments (`//! ..`, `/// ..`, `/** .. */`, `#[doc = ".."]`) with `--remove docs`.
@@ -227,19 +232,18 @@ pub struct OptEquip {
                 ```
             "#},
             ' ',
-        ))
+        )
     )]
     remove: Vec<Remove>,
 
     /// Minify part of the output before emitting [default: none]  [possible values: none, libs, all]
-    #[structopt(
+    #[arg(
         long,
-        value_name("MINIFY"),
-        possible_values(Minify::VARIANTS),
-        hide_possible_values(true),
-        default_value("none"),
-        hide_default_value(true),
-        long_help(concat!(
+        value_name = "MINIFY",
+        hide_possible_values = true,
+        default_value = "none",
+        hide_default_value = true,
+        long_help = concat!(
             indoc! {r#"
                 Minifies
                 - each expaned library with `--minify lib`.
@@ -248,49 +252,44 @@ pub struct OptEquip {
                 Not that the minification function is incomplete. Unnecessary spaces may be inserted.
             "#},
             ' ',
-        ))
+        )
     )]
     minify: Minify,
 
     /// Do not resolve `cfg(..)`s
-    #[structopt(long)]
+    #[arg(long)]
     no_resolve_cfgs: bool,
 
     /// Do not format the output before emitting
-    #[structopt(long)]
+    #[arg(long)]
     no_rustfmt: bool,
 
     /// Do not check the output before emitting
-    #[structopt(long)]
+    #[arg(long)]
     no_check: bool,
 
     /// Write to the file instead of STDOUT
-    #[structopt(short, long, value_name("PATH"))]
+    #[arg(short, long, value_name = "PATH")]
     output: Option<PathBuf>,
 
     /// [Deprecated] Alias for `--minify`
-    #[structopt(
-        long,
-        value_name("MINIFY"),
-        possible_values(Minify::VARIANTS),
-        default_value("none")
-    )]
+    #[arg(long, value_name = "MINIFY", default_value = "none")]
     oneline: Minify,
 
     /// [Deprecated] No-op
-    #[structopt(long, conflicts_with("no_resolve_cfgs"))]
+    #[arg(long, conflicts_with = "no_resolve_cfgs")]
     resolve_cfgs: bool,
 
     /// [Deprecated] No-op
-    #[structopt(long, conflicts_with("no_rustfmt"))]
+    #[arg(long, conflicts_with = "no_rustfmt")]
     rustfmt: bool,
 
     /// [Deprecated] No-op
-    #[structopt(long, conflicts_with("no_check"))]
+    #[arg(long, conflicts_with = "no_check")]
     check: bool,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum User {
     Github(String),
     GitlabCom(String),
@@ -316,9 +315,19 @@ impl FromStr for User {
     }
 }
 
-#[derive(Debug, derive_more::Display)]
+/// A `crate::$ident` path, stored as the bare `$ident`.
+///
+/// The name is kept as a `String` rather than a `syn::Ident` because clap requires
+/// argument types to be `Clone + Send + Sync`, and `syn::Ident` is none of those.
+#[derive(Clone, Debug, derive_more::Display)]
 #[display(fmt = "crate::{}", _0)]
-pub struct CrateSinglePath(syn::Ident);
+pub struct CrateSinglePath(String);
+
+impl CrateSinglePath {
+    fn ident(&self) -> syn::Ident {
+        syn::Ident::new(&self.0, proc_macro2::Span::call_site())
+    }
+}
 
 impl FromStr for CrateSinglePath {
     type Err = &'static str;
@@ -330,7 +339,7 @@ impl FromStr for CrateSinglePath {
                 segments,
             } = syn::parse_str(s).map_err(|_| ())?;
             match (leading_colon, &*segments.into_iter().collect::<Vec<_>>()) {
-                (None, [p1, p2]) if p1.ident == "crate" => Ok(Self(p2.ident.clone())),
+                (None, [p1, p2]) if p1.ident == "crate" => Ok(Self(p2.ident.to_string())),
                 _ => Err(()),
             }
         })()
@@ -338,50 +347,24 @@ impl FromStr for CrateSinglePath {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+/// clap stores argument values as `String` here because `PkgSpec` is not `Clone`.
+/// Parsing at this point still rejects a malformed spec with a proper CLI error.
+fn validate_pkg_spec(spec: &str) -> Result<String, String> {
+    spec.parse::<PkgSpec>().map_err(|e| e.to_string())?;
+    Ok(spec.to_owned())
+}
+
+#[derive(Clone, Copy, PartialEq, Debug, ValueEnum)]
 pub enum Remove {
     Docs,
     Comments,
 }
 
-impl Remove {
-    const VARIANTS: &'static [&'static str] = &["docs", "comments"];
-}
-
-impl FromStr for Remove {
-    type Err = &'static str;
-
-    fn from_str(s: &str) -> Result<Self, &'static str> {
-        match s {
-            "docs" => Ok(Self::Docs),
-            "comments" => Ok(Self::Comments),
-            _ => Err(r#"expected "docs", or "comments""#),
-        }
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, ValueEnum)]
 pub enum Minify {
     None,
     Libs,
     All,
-}
-
-impl Minify {
-    const VARIANTS: &'static [&'static str] = &["none", "libs", "all"];
-}
-
-impl FromStr for Minify {
-    type Err = &'static str;
-
-    fn from_str(s: &str) -> Result<Self, &'static str> {
-        match s {
-            "none" => Ok(Self::None),
-            "libs" => Ok(Self::Libs),
-            "all" => Ok(Self::All),
-            _ => Err(r#"expected "none", "libs", or "all""#),
-        }
-    }
 }
 
 pub struct Context<'a> {
@@ -406,7 +389,7 @@ pub fn run(opt: Opt, ctx: Context<'_>) -> anyhow::Result<()> {
         toolchain: deprecated_toolchain_opt,
         toolchain_for_udeps,
         toolchain_for_proc_macro_srv,
-        mod_path: CrateSinglePath(cargo_equip_mod_name),
+        mod_path,
         remove,
         minify,
         no_resolve_cfgs,
@@ -425,7 +408,10 @@ pub fn run(opt: Opt, ctx: Context<'_>) -> anyhow::Result<()> {
     };
 
     let exclude = {
-        let mut exclude = exclude;
+        let mut exclude = exclude
+            .iter()
+            .map(|spec| spec.parse().expect("validated by `validate_pkg_spec`"))
+            .collect::<Vec<PkgSpec>>();
         if exclude_atcoder_crates {
             exclude.extend(preset_crates::ATCODER.parse()?);
         }
@@ -444,6 +430,8 @@ pub fn run(opt: Opt, ctx: Context<'_>) -> anyhow::Result<()> {
     let toolchain_for_udeps = deprecated_toolchain_opt
         .as_ref()
         .unwrap_or(&toolchain_for_udeps);
+
+    let cargo_equip_mod_name = &mod_path.ident();
 
     let Context {
         cwd,
@@ -555,7 +543,7 @@ pub fn run(opt: Opt, ctx: Context<'_>) -> anyhow::Result<()> {
         },
         &libs_to_bundle,
         &mine,
-        &cargo_equip_mod_name,
+        cargo_equip_mod_name,
         !no_resolve_cfgs,
         &remove,
         minify,

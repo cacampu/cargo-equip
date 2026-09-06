@@ -12,6 +12,7 @@
 //! additionally covers linking and runtime behavior.
 
 use cargo_equip::shell::Shell;
+use clap::Parser as _;
 use once_cell::sync::Lazy;
 use std::{
     cell::RefCell,
@@ -23,7 +24,6 @@ use std::{
     str,
     sync::{Mutex, MutexGuard},
 };
-use structopt::StructOpt as _;
 
 /// `name: <stdin> => <expected stdout>;`
 ///
@@ -75,7 +75,7 @@ fn bundle(name: &str, _: MutexGuard<'_, ()>) -> anyhow::Result<String> {
     let stdout = Rc::new(RefCell::default());
 
     cargo_equip::run(
-        cargo_equip::Opt::from_iter_safe(&[
+        cargo_equip::Opt::try_parse_from([
             "",
             "equip",
             "--toolchain",

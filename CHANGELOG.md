@@ -16,6 +16,13 @@ This is a personal fork and is not released to crates.io. See the git history fo
 
 ### Changed
 
+- Replaced the three unmaintained dependencies. `atty` (which also carried
+  RUSTSEC-2021-0145) became `std::io::IsTerminal`, `dirs-next` became `dirs`, and
+  `structopt` became clap 4. Dropping `structopt` also removed `clap 2` and
+  `proc-macro-error` (RUSTSEC-2024-0370) from the tree.
+- **`--help` output changed**, since clap 4 formats it differently and no longer
+  shows the version and author in the header. All options, their names and their
+  behavior are unchanged, and `--version` still works.
 - The judge crate lists behind `--exclude-{atcoder,atcoder-202301,atcoder-202510,codingame}-crates`
   moved out of `src/lib.rs` into `src/preset_crates/*.txt`. Updating them for a new
   contest environment is now a data edit. A malformed entry is reported as an error

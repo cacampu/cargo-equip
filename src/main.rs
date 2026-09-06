@@ -3,14 +3,14 @@
 
 use anyhow::Context as _;
 use cargo_equip::{shell::Shell, Context, Opt};
-use structopt::{clap, StructOpt};
+use clap::Parser as _;
 use std::env;
 
 fn main() {
     let mut shell = Shell::new();
 
     let result = (|| {
-        let opt = Opt::from_iter_safe(env::args_os())?;
+        let opt = Opt::try_parse_from(env::args_os())?;
 
         let ctx = Context {
             cwd: env::current_dir().with_context(|| "could not get the current direcotry")?,
