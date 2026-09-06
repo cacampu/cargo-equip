@@ -29,6 +29,10 @@ This is a personal fork and is not released to crates.io. See the git history fo
 
 ### Changed
 
+- Vendored `rustminify`'s `minify_tokens` into `src/minify.rs` and dropped the
+  dependency. It was the last thing pulling in `syn` 1, and only for the signatures of
+  the two functions this crate does not use. The vendored part touches `proc-macro2`
+  only. Same author and same MIT OR Apache-2.0 terms, attributed in the module.
 - Migrated to `syn` 2. `Attribute::parse_meta` is gone, `MetaList` keeps its contents
   as raw tokens rather than a `Punctuated<NestedMeta, _>`, `MetaNameValue` holds an
   `Expr` instead of a `Lit`, and several AST nodes were renamed or removed. A shared

@@ -300,7 +300,7 @@ impl<'opt> CodeEdit<'opt> {
         }
 
         fn minify_group(group: proc_macro2::Group) -> String {
-            rustminify::minify_tokens(TokenTree::from(group).into())
+            crate::minify::minify_tokens(TokenTree::from(group).into())
         }
     }
 

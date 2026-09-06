@@ -184,7 +184,6 @@ dependencies = [
  "ra_ap_span",
  "ra_ap_tt",
  "rand",
- "rustminify",
  "semver",
  "serde",
  "serde_json",
@@ -1496,17 +1495,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustminify"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cd48802ac21406f1324dd919bad11157662eaafeb449011d50bd7cbab889762"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1721,17 +1709,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
-]
-
-[[package]]
-name = "syn"
-version = "1.0.109"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72b64191b275b66ffe2469e8af2c1cfe3bafa67b529ead792a6d0160888b4237"
-dependencies = [
- "proc-macro2",
- "quote",
- "unicode-ident",
 ]
 
 [[package]]

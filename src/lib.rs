@@ -3,6 +3,7 @@
 #![recursion_limit = "256"]
 
 mod cargo_udeps;
+mod minify;
 mod pkg_spec;
 mod preset_crates;
 mod process;
@@ -797,7 +798,7 @@ fn bundle(
     }
 
     if minify == Minify::All {
-        code = rustminify::minify_tokens(rust::parse_file(&code)?.to_token_stream());
+        code = minify::minify_tokens(rust::parse_file(&code)?.to_token_stream());
     }
 
     if rustfmt {
@@ -1041,8 +1042,7 @@ fn append_cargo_equip_mod(
                 *code += "        pub mod ";
                 *code += pseudo_extern_crate_name;
                 *code += " {";
-                *code +=
-                    &rustminify::minify_tokens(rust::parse_file(mod_content)?.to_token_stream());
+                *code += &minify::minify_tokens(rust::parse_file(mod_content)?.to_token_stream());
                 *code += "}\n";
             }
         } else {

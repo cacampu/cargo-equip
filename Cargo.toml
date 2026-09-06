@@ -32,7 +32,6 @@ ra_ap_proc_macro_api = "=0.0.309"
 ra_ap_tt = "=0.0.309"
 ra_ap_span = "=0.0.309"
 rand = "0.10"
-rustminify = "0.2.0"
 semver = { version = "1.0.18", features = ["serde"] }
 serde = { version = "1.0.181", features = ["derive"] }
 serde_json = "1.0.104"
