@@ -3,6 +3,7 @@
 #![recursion_limit = "256"]
 
 mod cargo_udeps;
+mod preset_crates;
 mod process;
 mod ra_proc_macro;
 mod rust;
@@ -114,7 +115,7 @@ pub struct OptEquip {
         long_help(Box::leak(
             format!(
                 "Alias for:\n--exclude {}\n ",
-                ATCODER_CRATES.iter().format("\n          "),
+                preset_crates::ATCODER.specs().format("\n          "),
             )
             .into_boxed_str(),
         ))
@@ -127,7 +128,7 @@ pub struct OptEquip {
         long_help(Box::leak(
             format!(
                 "Alias for:\n--exclude {}\n ",
-                ATCODER_202301_CRATES.iter().format("\n          "),
+                preset_crates::ATCODER_202301.specs().format("\n          "),
             )
             .into_boxed_str(),
         ))
@@ -139,7 +140,7 @@ pub struct OptEquip {
         long_help(Box::leak(
             format!(
                 "Alias for:\n--exclude {}\n ",
-                ATCODER_202510_CRATES.iter().format("\n          "),
+                preset_crates::ATCODER_202510.specs().format("\n          "),
             )
             .into_boxed_str(),
         ))
@@ -152,7 +153,7 @@ pub struct OptEquip {
         long_help(Box::leak(
             format!(
                 "Alias for:\n--exclude {}\n ",
-                CODINGAME_CRATES.iter().format("\n          "),
+                preset_crates::CODINGAME.specs().format("\n          "),
             )
             .into_boxed_str(),
         ))
@@ -389,194 +390,6 @@ pub struct Context<'a> {
     pub shell: &'a mut Shell,
 }
 
-static ATCODER_CRATES: &[&str] = &[
-    "https://github.com/rust-lang/crates.io-index#alga:0.9.3",
-    "https://github.com/rust-lang/crates.io-index#ascii:1.0.0",
-    "https://github.com/rust-lang/crates.io-index#bitset-fixed:0.1.0",
-    "https://github.com/rust-lang/crates.io-index#either:1.5.3",
-    "https://github.com/rust-lang/crates.io-index#fixedbitset:0.2.0",
-    "https://github.com/rust-lang/crates.io-index#getrandom:0.1.14",
-    "https://github.com/rust-lang/crates.io-index#im-rc:14.3.0",
-    "https://github.com/rust-lang/crates.io-index#indexmap:1.3.2",
-    "https://github.com/rust-lang/crates.io-index#itertools:0.9.0",
-    "https://github.com/rust-lang/crates.io-index#itertools-num:0.1.3",
-    "https://github.com/rust-lang/crates.io-index#lazy_static:1.4.0",
-    "https://github.com/rust-lang/crates.io-index#libm:0.2.1",
-    "https://github.com/rust-lang/crates.io-index#maplit:1.0.2",
-    "https://github.com/rust-lang/crates.io-index#nalgebra:0.20.0",
-    "https://github.com/rust-lang/crates.io-index#ndarray:0.13.0",
-    "https://github.com/rust-lang/crates.io-index#num:0.2.1",
-    "https://github.com/rust-lang/crates.io-index#num-bigint:0.2.6",
-    "https://github.com/rust-lang/crates.io-index#num-complex:0.2.4",
-    "https://github.com/rust-lang/crates.io-index#num-derive:0.3.0",
-    "https://github.com/rust-lang/crates.io-index#num-integer:0.1.42",
-    "https://github.com/rust-lang/crates.io-index#num-iter:0.1.40",
-    "https://github.com/rust-lang/crates.io-index#num-rational:0.2.4",
-    "https://github.com/rust-lang/crates.io-index#num-traits:0.2.11",
-    "https://github.com/rust-lang/crates.io-index#ordered-float:1.0.2",
-    "https://github.com/rust-lang/crates.io-index#permutohedron:0.2.4",
-    "https://github.com/rust-lang/crates.io-index#petgraph:0.5.0",
-    "https://github.com/rust-lang/crates.io-index#proconio:0.3.6",
-    "https://github.com/rust-lang/crates.io-index#proconio:0.3.7",
-    "https://github.com/rust-lang/crates.io-index#proconio:0.3.8",
-    "https://github.com/rust-lang/crates.io-index#rand:0.7.3",
-    "https://github.com/rust-lang/crates.io-index#rand_chacha:0.2.2",
-    "https://github.com/rust-lang/crates.io-index#rand_core:0.5.1",
-    "https://github.com/rust-lang/crates.io-index#rand_distr:0.2.2",
-    "https://github.com/rust-lang/crates.io-index#rand_hc:0.2.0",
-    "https://github.com/rust-lang/crates.io-index#rand_pcg:0.2.1",
-    "https://github.com/rust-lang/crates.io-index#regex:1.3.6",
-    "https://github.com/rust-lang/crates.io-index#rustc-hash:1.1.0",
-    "https://github.com/rust-lang/crates.io-index#smallvec:1.2.0",
-    "https://github.com/rust-lang/crates.io-index#superslice:1.0.0",
-    "https://github.com/rust-lang/crates.io-index#text_io:0.1.8",
-    "https://github.com/rust-lang/crates.io-index#whiteread:0.5.0",
-];
-
-static ATCODER_202301_CRATES: &[&str] = &[
-    "https://github.com/rust-lang/crates.io-index#ac-library-rs:0.1.1",
-    "https://github.com/rust-lang/crates.io-index#once_cell:1.18.0",
-    "https://github.com/rust-lang/crates.io-index#static_assertions:1.1.0",
-    "https://github.com/rust-lang/crates.io-index#varisat:0.2.2",
-    "https://github.com/rust-lang/crates.io-index#memoise:0.3.2",
-    "https://github.com/rust-lang/crates.io-index#argio:0.2.0",
-    "https://github.com/rust-lang/crates.io-index#bitvec:1.0.1",
-    "https://github.com/rust-lang/crates.io-index#counter:0.5.7",
-    "https://github.com/rust-lang/crates.io-index#hashbag:0.1.11",
-    "https://github.com/rust-lang/crates.io-index#pathfinding:4.3.0",
-    "https://github.com/rust-lang/crates.io-index#recur-fn:2.2.0",
-    "https://github.com/rust-lang/crates.io-index#indexing:0.4.1",
-    "https://github.com/rust-lang/crates.io-index#amplify:3.14.2",
-    "https://github.com/rust-lang/crates.io-index#amplify_derive:2.11.3",
-    "https://github.com/rust-lang/crates.io-index#amplify_num:0.4.1",
-    "https://github.com/rust-lang/crates.io-index#easy-ext:1.0.1",
-    "https://github.com/rust-lang/crates.io-index#multimap:0.9.0",
-    "https://github.com/rust-lang/crates.io-index#btreemultimap:0.1.1",
-    "https://github.com/rust-lang/crates.io-index#bstr:1.6.0",
-    "https://github.com/rust-lang/crates.io-index#az:1.2.1",
-    "https://github.com/rust-lang/crates.io-index#glidesort:0.1.2",
-    "https://github.com/rust-lang/crates.io-index#tap:1.0.1",
-    "https://github.com/rust-lang/crates.io-index#omniswap:0.1.0",
-    "https://github.com/rust-lang/crates.io-index#multiversion:0.7.2",
-    "https://github.com/rust-lang/crates.io-index#num:0.4.1",
-    "https://github.com/rust-lang/crates.io-index#num-bigint:0.4.3",
-    "https://github.com/rust-lang/crates.io-index#num-complex:0.4.3",
-    "https://github.com/rust-lang/crates.io-index#num-integer:0.1.45",
-    "https://github.com/rust-lang/crates.io-index#num-iter:0.1.43",
-    "https://github.com/rust-lang/crates.io-index#num-rational:0.4.1",
-    "https://github.com/rust-lang/crates.io-index#num-traits:0.2.15",
-    "https://github.com/rust-lang/crates.io-index#num-derive:0.4.0",
-    "https://github.com/rust-lang/crates.io-index#ndarray:0.15.6",
-    "https://github.com/rust-lang/crates.io-index#nalgebra:0.32.3",
-    "https://github.com/rust-lang/crates.io-index#alga:0.9.3",
-    "https://github.com/rust-lang/crates.io-index#libm:0.2.7",
-    "https://github.com/rust-lang/crates.io-index#rand:0.8.5",
-    "https://github.com/rust-lang/crates.io-index#getrandom:0.2.10",
-    "https://github.com/rust-lang/crates.io-index#rand_chacha:0.3.1",
-    "https://github.com/rust-lang/crates.io-index#rand_core:0.6.4",
-    "https://github.com/rust-lang/crates.io-index#rand_hc:0.3.2",
-    "https://github.com/rust-lang/crates.io-index#rand_pcg:0.3.1",
-    "https://github.com/rust-lang/crates.io-index#rand_distr:0.4.3",
-    "https://github.com/rust-lang/crates.io-index#petgraph:0.6.3",
-    "https://github.com/rust-lang/crates.io-index#indexmap:2.0.0",
-    "https://github.com/rust-lang/crates.io-index#regex:1.9.1",
-    "https://github.com/rust-lang/crates.io-index#lazy_static:1.4.0",
-    "https://github.com/rust-lang/crates.io-index#ordered-float:3.7.0",
-    "https://github.com/rust-lang/crates.io-index#ascii:1.1.0",
-    "https://github.com/rust-lang/crates.io-index#permutohedron:0.2.4",
-    "https://github.com/rust-lang/crates.io-index#superslice:1.0.0",
-    "https://github.com/rust-lang/crates.io-index#itertools:0.11.0",
-    "https://github.com/rust-lang/crates.io-index#itertools-num:0.1.3",
-    "https://github.com/rust-lang/crates.io-index#maplit:1.0.2",
-    "https://github.com/rust-lang/crates.io-index#either:1.8.1",
-    "https://github.com/rust-lang/crates.io-index#im-rc:15.1.0",
-    "https://github.com/rust-lang/crates.io-index#fixedbitset:0.4.2",
-    "https://github.com/rust-lang/crates.io-index#bitset-fixed:0.1.0",
-    "https://github.com/rust-lang/crates.io-index#proconio:0.4.5",
-    "https://github.com/rust-lang/crates.io-index#text_io:0.1.12",
-    "https://github.com/rust-lang/crates.io-index#rustc-hash:1.1.0",
-    "https://github.com/rust-lang/crates.io-index#smallvec:1.11.0",
-];
-static ATCODER_202510_CRATES: &[&str] = &[
-    "ac-library-rs:0.2.0",
-    "alga:0.9.3",
-    "amplify:4.9.0",
-    "amplify_derive:4.0.1",
-    "amplify_num:0.5.3",
-    "argio:0.2.0",
-    "ascii:1.1.0",
-    "az:1.2.1",
-    "bitset-fixed:0.1.0",
-    "bitvec:1.0.1",
-    "bstr:1.12.0",
-    "btreemultimap:0.1.1",
-    "counter:0.7.0",
-    "easy-ext:1.0.2",
-    "either:1.15.0",
-    "fixedbitset:0.5.7",
-    "getrandom:0.3.3",
-    "glidesort:0.1.2",
-    "hashbag:0.1.12",
-    "im-rc:15.1.0",
-    "indexing:0.4.1",
-    "indexmap:2.11.0",
-    "itertools:0.14.0",
-    "itertools-num:0.1.3",
-    "lazy_static:1.5.0",
-    "libm:0.2.15",
-    "maplit:1.0.2",
-    "memoise:0.3.2",
-    "multimap:0.10.1",
-    "multiversion:0.8.0",
-    "nalgebra:0.34.0",
-    "ndarray:0.16.1",
-    "num:0.4.3",
-    "num-bigint:0.4.6",
-    "num-complex:0.4.6",
-    "num-derive:0.4.2",
-    "num-integer:0.1.46",
-    "num-iter:0.1.45",
-    "num-rational:0.4.2",
-    "num-traits:0.2.19",
-    "omniswap:0.1.0",
-    "once_cell:1.21.3",
-    "ordered-float:5.0.0",
-    "pathfinding:4.14.0",
-    "permutohedron:0.2.4",
-    "petgraph:0.8.2",
-    "primal:0.3.3",
-    "proconio:0.5.0",
-    "rand:0.9.2",
-    "rand_chacha:0.9.0",
-    "rand_core:0.9.3",
-    "rand_distr:0.5.1",
-    "rand_hc:0.4.0",
-    "rand_pcg:0.9.0",
-    "rand_xorshift:0.4.0",
-    "rand_xoshiro:0.7.0",
-    "recur-fn:2.2.0",
-    "regex:1.11.2",
-    "rpds:1.1.1",
-    "rustc-hash:2.1.1",
-    "smallvec:1.15.1",
-    "static_assertions:1.1.0",
-    "statrs:0.18.0",
-    "superslice:1.0.0",
-    "tap:1.0.1",
-    "text_io:0.1.13",
-    "thiserror:2.0.16",
-    "varisat:0.2.2",
-];
-
-static CODINGAME_CRATES: &[&str] = &[
-    "https://github.com/rust-lang/crates.io-index#chrono:0.4.19",
-    "https://github.com/rust-lang/crates.io-index#itertools:0.10.0",
-    "https://github.com/rust-lang/crates.io-index#libc:0.2.93",
-    "https://github.com/rust-lang/crates.io-index#rand:0.8.3",
-    "https://github.com/rust-lang/crates.io-index#regex:1.4.5",
-    "https://github.com/rust-lang/crates.io-index#time:0.2.26",
-];
-
 pub fn run(opt: Opt, ctx: Context<'_>) -> anyhow::Result<()> {
     let Opt::Equip(OptEquip {
         src,
@@ -614,16 +427,16 @@ pub fn run(opt: Opt, ctx: Context<'_>) -> anyhow::Result<()> {
     let exclude = {
         let mut exclude = exclude;
         if exclude_atcoder_crates {
-            exclude.extend(ATCODER_CRATES.iter().map(|s| s.parse().unwrap()));
+            exclude.extend(preset_crates::ATCODER.parse()?);
         }
         if exclude_atcoder_202301_crates {
-            exclude.extend(ATCODER_202301_CRATES.iter().map(|s| s.parse().unwrap()));
+            exclude.extend(preset_crates::ATCODER_202301.parse()?);
         }
         if exclude_atcoder_202510_crates {
-            exclude.extend(ATCODER_202510_CRATES.iter().map(|s| s.parse().unwrap()));
+            exclude.extend(preset_crates::ATCODER_202510.parse()?);
         }
         if exclude_codingame_crates {
-            exclude.extend(CODINGAME_CRATES.iter().map(|s| s.parse().unwrap()));
+            exclude.extend(preset_crates::CODINGAME.parse()?);
         }
         exclude
     };
@@ -716,8 +529,9 @@ pub fn run(opt: Opt, ctx: Context<'_>) -> anyhow::Result<()> {
             })
             .join("");
 
-        let crates_available_on_atcoder = iproduct!(libs_to_bundle.keys(), ATCODER_CRATES)
-            .filter(|(id, s)| s.parse::<PkgSpec>().unwrap().matches(&metadata[id]))
+        let atcoder_specs = preset_crates::ATCODER.parse().unwrap_or_default();
+        let crates_available_on_atcoder = iproduct!(libs_to_bundle.keys(), &atcoder_specs)
+            .filter(|(id, spec)| spec.matches(&metadata[id]))
             .map(|(id, _)| format!("- `{}`\n", id))
             .join("");
 

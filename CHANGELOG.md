@@ -16,6 +16,10 @@ This is a personal fork and is not released to crates.io. See the git history fo
 
 ### Changed
 
+- The judge crate lists behind `--exclude-{atcoder,atcoder-202301,atcoder-202510,codingame}-crates`
+  moved out of `src/lib.rs` into `src/preset_crates/*.txt`. Updating them for a new
+  contest environment is now a data edit. A malformed entry is reported as an error
+  instead of panicking mid-run, and a unit test checks that every list parses.
 - Replaced the md5 snapshot tests with end-to-end tests that compile the bundled
   output and run it, asserting on its exit status and stdout. The md5 assertions only
   checked "byte-identical to the last recorded run", so they broke on every dependency
