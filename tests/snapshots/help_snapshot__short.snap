@@ -34,6 +34,8 @@ Options:
           Alias for `--exclude {crates available on AtCoder 202510}`
       --exclude-codingame-crates
           Alias for `--exclude {crates available on CodinGame}`
+      --exclude-yukicoder-crates
+          Alias for `--exclude {crates available on yukicoder}`
       --mine <DOMAIN_AND_USERNAME>
           Do not include license and copyright notices for the users
       --toolchain <TOOLCHAIN>
@@ -68,4 +70,3 @@ Options:
           Print help (see more with '--help')
   -V, --version
           Print version
-

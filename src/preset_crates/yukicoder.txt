@@ -1,0 +1,10 @@
+# yukicoder pins these as version ranges rather than exact versions, so the entries
+# carry no version and match whatever the range resolved to.
+#
+# [dependencies]
+# proconio = { version = "0.5", features = ["derive"] }
+# num = "0.4"
+# itertools = "0.14"
+proconio
+num
+itertools

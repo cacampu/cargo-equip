@@ -164,6 +164,19 @@ pub struct OptEquip {
     )]
     exclude_codingame_crates: bool,
 
+    /// Alias for `--exclude {crates available on yukicoder}`
+    #[arg(
+        long,
+        long_help = &*Box::leak(
+            format!(
+                "Alias for:\n--exclude {}\n ",
+                preset_crates::YUKICODER.specs().format("\n          "),
+            )
+            .into_boxed_str(),
+        )
+    )]
+    exclude_yukicoder_crates: bool,
+
     /// Do not include license and copyright notices for the users
     #[arg(
         long,
@@ -385,6 +398,7 @@ pub fn run(opt: Opt, ctx: Context<'_>) -> anyhow::Result<()> {
         exclude_atcoder_202301_crates,
         exclude_atcoder_202510_crates,
         exclude_codingame_crates,
+        exclude_yukicoder_crates,
         mine,
         toolchain: deprecated_toolchain_opt,
         toolchain_for_udeps,
@@ -423,6 +437,9 @@ pub fn run(opt: Opt, ctx: Context<'_>) -> anyhow::Result<()> {
         }
         if exclude_codingame_crates {
             exclude.extend(preset_crates::CODINGAME.parse()?);
+        }
+        if exclude_yukicoder_crates {
+            exclude.extend(preset_crates::YUKICODER.parse()?);
         }
         exclude
     };

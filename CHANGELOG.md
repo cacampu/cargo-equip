@@ -14,6 +14,19 @@ This is a personal fork and is not released to crates.io. See the git history fo
   definitions and macro invocations), which the previous `syn`-based visitor did not
   descend into.
 
+### Fixed
+
+- `--exclude-atcoder-crates`, `--exclude-atcoder-202301-crates` and
+  `--exclude-codingame-crates` were silently excluding nothing. Their entries carried
+  the registry URL, and `PkgSpec::matches` reads that URL out of `PackageId::repr` by
+  splitting on spaces — but cargo now writes ids as
+  `registry+https://…#name@version`, with no spaces, so the lookup always failed. The
+  URLs are gone from the lists, and a test rejects any that come back.
+
+### Added
+
+- `--exclude-yukicoder-crates`.
+
 ### Changed
 
 - Bumped 12 dependencies across major versions: `itertools` 0.10 → 0.15, `indoc`
