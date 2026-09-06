@@ -34,7 +34,7 @@ use petgraph::{
     visit::Dfs,
 };
 use prettytable::{cell, format::FormatBuilder, row, Table};
-use quote::quote;
+use quote::{quote, ToTokens as _};
 use std::{
     cmp,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
@@ -797,7 +797,7 @@ fn bundle(
     }
 
     if minify == Minify::All {
-        code = rustminify::minify_file(&rust::parse_file(&code)?);
+        code = rustminify::minify_tokens(rust::parse_file(&code)?.to_token_stream());
     }
 
     if rustfmt {
@@ -1041,7 +1041,8 @@ fn append_cargo_equip_mod(
                 *code += "        pub mod ";
                 *code += pseudo_extern_crate_name;
                 *code += " {";
-                *code += &rustminify::minify_file(&rust::parse_file(mod_content)?);
+                *code +=
+                    &rustminify::minify_tokens(rust::parse_file(mod_content)?.to_token_stream());
                 *code += "}\n";
             }
         } else {

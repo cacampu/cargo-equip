@@ -9,13 +9,25 @@ use proc_macro2::{LineColumn, Span, TokenStream, TokenTree};
 use quote::ToTokens;
 use std::{collections::BTreeMap, mem, str};
 use syn::{
-    parse_quote, spanned::Spanned, visit::Visit, Attribute, Ident, Item, ItemMacro, ItemMod,
-    ItemUse, Lit, Meta, MetaList, MetaNameValue, NestedMeta, UseGroup, UsePath, UseTree,
+    parse_quote, punctuated::Punctuated, spanned::Spanned, visit::Visit, Expr, ExprLit, Ident,
+    Item, ItemMacro, ItemMod, ItemUse, Lit, Meta, MetaList, MetaNameValue, Token, UseGroup,
+    UsePath, UseTree,
 };
 
 mod expand;
 mod strip;
 mod translate;
+
+/// The comma-separated `Meta`s inside `#[name(..)]`.
+///
+/// syn 1 handed these over as `MetaList::nested`. syn 2 keeps the contents of an
+/// attribute list as raw tokens, so anything wanting to look inside has to parse
+/// them. An unparseable list yields nothing rather than an error: these are
+/// best-effort inspections of other people's attributes.
+pub(crate) fn nested_metas(list: &MetaList) -> Punctuated<Meta, Token![,]> {
+    list.parse_args_with(Punctuated::parse_terminated)
+        .unwrap_or_default()
+}
 
 pub(crate) fn find_skip_attribute(code: &str) -> anyhow::Result<bool> {
     let syn::File { attrs, .. } = syn::parse_file(code)
@@ -24,15 +36,15 @@ pub(crate) fn find_skip_attribute(code: &str) -> anyhow::Result<bool> {
 
     Ok(attrs
         .iter()
-        .flat_map(Attribute::parse_meta)
+        .map(|attr| &attr.meta)
         .flat_map(|meta| match meta {
             Meta::List(meta_list) => Some(meta_list),
             _ => None,
         })
         .filter(|MetaList { path, .. }| path.is_ident("cfg_attr"))
-        .any(|MetaList { nested, .. }| {
+        .any(|meta_list| {
             matches!(
-                *nested.iter().collect::<Vec<_>>(),
+                *nested_metas(meta_list).iter().collect::<Vec<_>>(),
                 [pred, attr]
                 if matches!(
                     cfg_expr::Expression::parse(&pred.to_token_stream().to_string()),
@@ -330,7 +342,7 @@ impl<'opt> CodeEdit<'opt> {
                 .map(|(attrs, ident, semi)| {
                     let paths = if let Some(path) = attrs
                         .iter()
-                        .flat_map(Attribute::parse_meta)
+                        .map(|attr| &attr.meta)
                         .flat_map(|meta| match meta {
                             Meta::NameValue(name_value) => Some(name_value),
                             _ => None,
@@ -338,8 +350,8 @@ impl<'opt> CodeEdit<'opt> {
                         .filter(|MetaNameValue { path, .. }| {
                             matches!(path.get_ident(), Some(i) if i == "path")
                         })
-                        .find_map(|MetaNameValue { lit, .. }| match lit {
-                            Lit::Str(s) => Some(s.value()),
+                        .find_map(|MetaNameValue { value, .. }| match value {
+                            Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) => Some(s.value()),
                             _ => None,
                         }) {
                         vec![src_path.with_file_name("").join(path)]
@@ -404,17 +416,17 @@ impl<'opt> CodeEdit<'opt> {
                     *self.out |= i
                         .attrs
                         .iter()
-                        .flat_map(Attribute::parse_meta)
+                        .map(|attr| &attr.meta)
                         .flat_map(|meta| match meta {
-                            Meta::List(MetaList { path, nested, .. }) => Some((path, nested)),
+                            Meta::List(meta_list) => Some(meta_list),
                             _ => None,
                         })
-                        .any(|(path, nested)| {
-                            path.is_ident("macro_export")
-                                && nested.iter().any(|meta| {
+                        .any(|meta_list| {
+                            meta_list.path.is_ident("macro_export")
+                                && nested_metas(meta_list).iter().any(|meta| {
                                     matches!(
                                         meta,
-                                        NestedMeta::Meta(Meta::Path(path))
+                                        Meta::Path(path)
                                         if path.is_ident("local_inner_macros")
                                     )
                                 })

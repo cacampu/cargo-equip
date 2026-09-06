@@ -16,8 +16,8 @@ use std::{
     str,
 };
 use syn::{
-    spanned::Spanned, visit::Visit, Attribute, Ident, Item, ItemExternCrate, ItemMacro, ItemMod,
-    ItemUse, Macro, PathSegment, UseGroup, UseName, UsePath, UseRename, UseTree, VisRestricted,
+    spanned::Spanned, visit::Visit, Ident, Item, ItemExternCrate, ItemMacro, ItemMod, ItemUse,
+    Macro, PathSegment, UseGroup, UseName, UsePath, UseRename, UseTree, VisRestricted,
 };
 
 impl<'opt> CodeEdit<'opt> {
@@ -51,10 +51,7 @@ impl<'opt> CodeEdit<'opt> {
                 } = item_use;
 
                 if (self.is_lib_to_bundle)(&ident.to_string()) {
-                    let is_macro_use = attrs
-                        .iter()
-                        .flat_map(Attribute::parse_meta)
-                        .any(|m| m.path().is_ident("macro_use"));
+                    let is_macro_use = attrs.iter().any(|a| a.path().is_ident("macro_use"));
                     let vis = vis.to_token_stream();
 
                     let mut insertion = "".to_owned();
@@ -340,11 +337,7 @@ impl<'opt> CodeEdit<'opt> {
                     pseudo_extern_crate_name,
                     &mut self.replacements,
                 );
-                if attrs
-                    .iter()
-                    .flat_map(Attribute::parse_meta)
-                    .any(|m| m.path().is_ident("macro_export"))
-                {
+                if attrs.iter().any(|a| a.path().is_ident("macro_export")) {
                     let rename = format!(
                         "{}_macro_def_{}_{}",
                         self.cargo_equip_mod_name, pseudo_extern_crate_name, ident,

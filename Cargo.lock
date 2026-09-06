@@ -190,7 +190,7 @@ dependencies = [
  "serde_json",
  "spdx",
  "strum",
- "syn 1.0.109",
+ "syn 2.0.119",
  "tap",
  "tempfile",
  "termcolor",
