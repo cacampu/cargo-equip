@@ -1,19 +1,20 @@
-# cargo-equip
+# cargo-equip (個人用フォーク)
 
-[![CI](https://github.com/qryxip/cargo-equip/workflows/CI/badge.svg)](https://github.com/qryxip/cargo-equip/actions?workflow=CI)
-[![codecov](https://codecov.io/gh/qryxip/cargo-equip/branch/master/graph/badge.svg)](https://codecov.io/gh/qryxip/cargo-equip/branch/master)
-[![dependency status](https://deps.rs/repo/github/qryxip/cargo-equip/status.svg)](https://deps.rs/repo/github/qryxip/cargo-equip)
-[![Crates.io](https://img.shields.io/crates/v/cargo-equip.svg)](https://crates.io/crates/cargo-equip)
-[![Crates.io](https://img.shields.io/crates/l/cargo-equip.svg)](https://crates.io/crates/cargo-equip)
+> **これは[qryxip/cargo-equip](https://github.com/qryxip/cargo-equip)の個人用フォークです。** 本家は現在メンテナンスされていません。
+>
+> 自分で使うためだけに改変しています。**本家との互換性を保証しません** — CLI・出力形式・内部実装いずれも予告なく破壊的に変更します。crates.ioには公開していません。crates.ioの`cargo-equip`は本家のものです。
+>
+> 本家をお探しの方は[qryxip/cargo-equip](https://github.com/qryxip/cargo-equip)へどうぞ。
+>
+> ライセンスは本家から引き継いだMIT OR Apache-2.0です。[LICENSE-MIT](LICENSE-MIT)と[LICENSE-APACHE](LICENSE-APACHE)を参照してください。
 
-[English](https://github.com/qryxip/cargo-equip)
+[English](README.md)
 
 競技プログラミング用にRustコードを一つの`.rs`ファイルにバンドルするCargoサブコマンドです。
 
 ## 更新情報
 
-更新情報は[CHANGELOG.md](https://github.com/qryxip/cargo-equip/blob/master/CHANGELOG.md)にあります。
-また同一の内容がGitHubのリリースページにあります。
+更新情報は[CHANGELOG.md](CHANGELOG.md)にあります。v0.20.1までの項目は本家のものです。
 
 ## 機能
 
@@ -110,21 +111,11 @@ mod sub {
 ❯ cargo install cargo-udeps
 ```
 
-### Crates.ioから
+その上で、このフォークをGitからインストールしてください。`cargo install cargo-equip`ではcrates.ioの**本家**が入ってしまう点に注意してください（バイナリ名が同じなので衝突します）。
 
 ```console
-❯ cargo install cargo-equip
+❯ cargo install cargo-equip --git https://github.com/cacampu/cargo-equip
 ```
-
-### `master`ブランチから
-
-```console
-❯ cargo install cargo-equip --git https://github.com/qryxip/cargo-equip
-```
-
-### GitHub Releases
-
-[バイナリでの提供](https://github.com/qryxip/cargo-equip/releases)もしています。
 
 ## 使い方
 

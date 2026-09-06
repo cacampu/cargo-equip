@@ -1,18 +1,20 @@
-# cargo-equip
+# cargo-equip (personal fork)
 
-[![CI](https://github.com/qryxip/cargo-equip/workflows/CI/badge.svg)](https://github.com/qryxip/cargo-equip/actions?workflow=CI)
-[![codecov](https://codecov.io/gh/qryxip/cargo-equip/branch/master/graph/badge.svg)](https://codecov.io/gh/qryxip/cargo-equip/branch/master)
-[![dependency status](https://deps.rs/repo/github/qryxip/cargo-equip/status.svg)](https://deps.rs/repo/github/qryxip/cargo-equip)
-[![Crates.io](https://img.shields.io/crates/v/cargo-equip.svg)](https://crates.io/crates/cargo-equip)
-[![Crates.io](https://img.shields.io/crates/l/cargo-equip.svg)](https://crates.io/crates/cargo-equip)
+> **This is a personal fork of [qryxip/cargo-equip](https://github.com/qryxip/cargo-equip), which is no longer maintained upstream.**
+>
+> It is maintained for my own use only. **It is not compatible with upstream and makes no compatibility promises** — breaking changes to the CLI, the output format, and the internals are made freely and without notice. It is not published to crates.io; the `cargo-equip` crate there is the original.
+>
+> If you are looking for the original project, go to [qryxip/cargo-equip](https://github.com/qryxip/cargo-equip).
+>
+> Licensed under MIT OR Apache-2.0, inherited from the original. See [LICENSE-MIT](LICENSE-MIT) and [LICENSE-APACHE](LICENSE-APACHE).
 
-[日本語](https://github.com/qryxip/cargo-equip/blob/master/README-ja.md)
+[日本語](README-ja.md)
 
 A Cargo subcommand to bundle your code into one `.rs` file for competitive programming.
 
 ## Recent updates
 
-See [CHANGELOG.md](https://github.com/qryxip/cargo-equip/blob/master/CHANGELOG.md) or [Releases](https://github.com/qryxip/cargo-equip/releases) for recent updates.
+See [CHANGELOG.md](CHANGELOG.md) for recent updates. Entries up to v0.20.1 are from the original project.
 
 ## Features
 
@@ -111,21 +113,11 @@ Install a `nightly` toolchain and [cargo-udeps](https://github.com/est31/cargo-u
 ❯ cargo install cargo-udeps
 ```
 
-### From Crates.io
+Then install this fork from Git. Note that `cargo install cargo-equip` would install the *original* crate from crates.io, not this fork, and the two share the same binary name.
 
 ```console
-❯ cargo install cargo-equip
+❯ cargo install cargo-equip --git https://github.com/cacampu/cargo-equip
 ```
-
-### From `master` branch
-
-```console
-❯ cargo install cargo-equip --git https://github.com/qryxip/cargo-equip
-```
-
-### GitHub Releases
-
-[Releases](https://github.com/qryxip/cargo-equip/releases)
 
 ## Usage
 

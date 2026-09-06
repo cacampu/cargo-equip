@@ -1,5 +1,13 @@
 # Changelog
 
+> Entries from [0.20.1] downwards are inherited from the original project,
+> [qryxip/cargo-equip](https://github.com/qryxip/cargo-equip). Issue and PR links in
+> those entries point to the original repository.
+
+## Unreleased (fork)
+
+This is a personal fork and is not released to crates.io. See the git history for changes.
+
 ## [0.20.1] - 2023-08-06Z
 
 ### Fixed
