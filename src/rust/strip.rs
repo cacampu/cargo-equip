@@ -12,18 +12,18 @@ use std::{borrow::Cow, collections::BTreeMap, str};
 use syn::{
     spanned::Spanned,
     visit::{self, Visit},
-    Arm, Attribute, BareFnArg, ConstParam, ExprArray, ExprAssign, ExprAsync, ExprAwait, ExprBinary,
-    ExprBlock, ExprBreak, ExprCall, ExprCast, ExprClosure, ExprContinue, ExprField, ExprForLoop,
-    ExprGroup, ExprIf, ExprIndex, ExprLet, ExprLit, ExprLoop, ExprMacro, ExprMatch, ExprMethodCall,
-    ExprParen, ExprPath, ExprRange, ExprReference, ExprRepeat, ExprReturn, ExprStruct, ExprTry,
-    ExprTryBlock, ExprTuple, ExprUnary, ExprUnsafe, ExprWhile, ExprYield, Field, FieldPat,
-    FieldValue, ForeignItemFn, ForeignItemMacro, ForeignItemStatic, ForeignItemType, ImplItemConst,
-    ImplItemFn, ImplItemMacro, ImplItemType, ItemConst, ItemEnum, ItemExternCrate, ItemFn,
-    ItemForeignMod, ItemImpl, ItemMacro, ItemMod, ItemStatic, ItemStruct, ItemTrait,
-    ItemTraitAlias, ItemType, ItemUnion, ItemUse, LifetimeParam, Local, Meta, MetaList, PatIdent,
-    PatOr, PatReference, PatRest, PatSlice, PatStruct, PatTuple, PatTupleStruct, PatType, PatWild,
-    Receiver, TraitItemConst, TraitItemFn, TraitItemMacro, TraitItemType, TypeParam, Variadic,
-    Variant,
+    Arm, Attribute, ConstParam, ExprArray, ExprAssign, ExprAsync, ExprAwait, ExprBinary, ExprBlock,
+    ExprBreak, ExprCall, ExprCast, ExprClosure, ExprContinue, ExprField, ExprForLoop, ExprGroup,
+    ExprIf, ExprIndex, ExprLet, ExprLit, ExprLoop, ExprMacro, ExprMatch, ExprMethodCall, ExprParen,
+    ExprPath, ExprRange, ExprReference, ExprRepeat, ExprReturn, ExprStruct, ExprTry, ExprTryBlock,
+    ExprTuple, ExprUnary, ExprUnsafe, ExprWhile, ExprYield, Field, FieldPat, FieldValue,
+    FnPtrVariadic, ForeignItemFn, ForeignItemMacro, ForeignItemStatic, ForeignItemType,
+    ImplItemConst, ImplItemFn, ImplItemMacro, ImplItemType, ItemConst, ItemEnum, ItemExternCrate,
+    ItemFn, ItemForeignMod, ItemImpl, ItemMacro, ItemMod, ItemStatic, ItemStruct, ItemTrait,
+    ItemTraitAlias, ItemType, ItemUnion, ItemUse, LifetimeParam, Local, Meta, MetaList, NamedArg,
+    PatIdent, PatOr, PatReference, PatRest, PatSlice, PatStruct, PatTuple, PatTupleStruct, PatType,
+    PatWild, Receiver, TraitItemConst, TraitItemFn, TraitItemMacro, TraitItemType, TypeParam,
+    Variadic, Variant,
 };
 
 impl<'opt> CodeEdit<'opt> {
@@ -106,7 +106,7 @@ impl<'opt> CodeEdit<'opt> {
         impl Visit<'_> for Visitor<'_> {
             impl_visits! {
                 fn visit_arm                (&mut self, _: &'_ Arm              ) { _(_, _, visit::visit_arm                ) }
-                fn visit_bare_fn_arg        (&mut self, _: &'_ BareFnArg        ) { _(_, _, visit::visit_bare_fn_arg        ) }
+                fn visit_named_arg        (&mut self, _: &'_ NamedArg        ) { _(_, _, visit::visit_named_arg        ) }
                 fn visit_const_param        (&mut self, _: &'_ ConstParam       ) { _(_, _, visit::visit_const_param        ) }
                 fn visit_expr_array         (&mut self, _: &'_ ExprArray        ) { _(_, _, visit::visit_expr_array         ) }
                 fn visit_expr_assign        (&mut self, _: &'_ ExprAssign       ) { _(_, _, visit::visit_expr_assign        ) }
@@ -189,6 +189,7 @@ impl<'opt> CodeEdit<'opt> {
                 fn visit_trait_item_fn  (&mut self, _: &'_ TraitItemFn  ) { _(_, _, visit::visit_trait_item_fn  ) }
                 fn visit_trait_item_type    (&mut self, _: &'_ TraitItemType    ) { _(_, _, visit::visit_trait_item_type    ) }
                 fn visit_type_param         (&mut self, _: &'_ TypeParam        ) { _(_, _, visit::visit_type_param         ) }
+                fn visit_fn_ptr_variadic    (&mut self, _: &'_ FnPtrVariadic    ) { _(_, _, visit::visit_fn_ptr_variadic    ) }
                 fn visit_variadic           (&mut self, _: &'_ Variadic         ) { _(_, _, visit::visit_variadic           ) }
                 fn visit_variant            (&mut self, _: &'_ Variant          ) { _(_, _, visit::visit_variant            ) }
             }

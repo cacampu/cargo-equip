@@ -33,13 +33,12 @@ This is a personal fork and is not released to crates.io. See the git history fo
   dependency. It was the last thing pulling in `syn` 1, and only for the signatures of
   the two functions this crate does not use. The vendored part touches `proc-macro2`
   only. Same author and same MIT OR Apache-2.0 terms, attributed in the module.
-- Migrated to `syn` 2. `Attribute::parse_meta` is gone, `MetaList` keeps its contents
+- Migrated to `syn` 3. `Attribute::parse_meta` is gone, `MetaList` keeps its contents
   as raw tokens rather than a `Punctuated<NestedMeta, _>`, `MetaNameValue` holds an
   `Expr` instead of a `Lit`, and several AST nodes were renamed or removed. A shared
   `rust::nested_metas` parses the contents of an attribute list where one is needed.
-  `syn` 1 is still built as a private dependency of `rustminify`, which pins it;
-  `minify_file` was swapped for the syn-agnostic `minify_tokens` so that boundary no
-  longer constrains our own code.
+  `syn` 2 is still built, but only for other crates' proc macros (`derive_more`,
+  `openssl-macros`, `salsa-macros`); nothing this crate can choose affects that.
 - Dropped the `krates` dependency. Only `PkgSpec` was ever used from it, and krates
   0.21 stopped re-exporting `cargo_metadata` in favour of its own metadata types, so
   the type now lives in `src/pkg_spec.rs`. It accepts `name`, `name@version` and the
