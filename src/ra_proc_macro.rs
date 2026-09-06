@@ -31,7 +31,7 @@ pub(crate) fn list_proc_macro_dylibs<P: FnMut(&cm::PackageId) -> bool>(
                  ..
              }| {
                 filenames
-                    .get(0)
+                    .first()
                     .map(|filename| (package_id, AbsPath::assert(filename.as_ref())))
             },
         )

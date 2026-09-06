@@ -238,17 +238,11 @@ pub(crate) fn cargo_check_using_current_lockfile_and_cache(
         let resolve_workspace_deps = |table: &mut toml_edit::Table| {
             let ws_keys: Vec<String> = table
                 .iter()
-                .filter(|(_, v)| {
-                    v["workspace"]
-                        .as_value()
-                        .and_then(|v| v.as_bool())
-                        == Some(true)
-                })
+                .filter(|(_, v)| v["workspace"].as_value().and_then(|v| v.as_bool()) == Some(true))
                 .map(|(k, _)| k.to_owned())
                 .collect();
             for key in &ws_keys {
-                let ws_dep =
-                    ws_manifest["workspace"]["dependencies"][key.as_str()].clone();
+                let ws_dep = ws_manifest["workspace"]["dependencies"][key.as_str()].clone();
                 if !ws_dep.is_none() {
                     table[key.as_str()] = ws_dep;
                 }
@@ -334,7 +328,7 @@ impl MetadataExt for cm::Metadata {
             &*targets_in_ws(self)
                 .filter(|(t, p)| {
                     (t.is_lib() || t.is_bin() || t.is_example())
-                        && root_package.map_or(true, |r| r.id == p.id)
+                        && root_package.is_none_or(|r| r.id == p.id)
                 })
                 .collect::<Vec<_>>(),
             root_package,
@@ -344,7 +338,7 @@ impl MetadataExt for cm::Metadata {
             }
             ([], None) => bail!("no lib/bin/example target in this workspace"),
             ([t], _) => Ok(*t),
-            ([ts @ ..], _) => bail!(
+            (ts, _) => bail!(
                 "could not determine which target to choose. Use the `--bin` option, `--example` \
                  option, `--lib` option, or `--src` option to specify a target.\n\
                  available targets: {}\n\
@@ -352,7 +346,7 @@ impl MetadataExt for cm::Metadata {
                 ts.iter()
                     .map(|(target, _)| format!(
                         "{}{}",
-                        &target.name,
+                        target.name,
                         if target.is_lib() {
                             " (lib)"
                         } else if target.is_bin() {
@@ -372,7 +366,7 @@ impl MetadataExt for cm::Metadata {
         let root_package = self.root_package();
         match (
             &*targets_in_ws(self)
-                .filter(|(t, p)| t.is_lib() && root_package.map_or(true, |r| r.id == p.id))
+                .filter(|(t, p)| t.is_lib() && root_package.is_none_or(|r| r.id == p.id))
                 .collect::<Vec<_>>(),
             root_package,
         ) {
@@ -484,7 +478,7 @@ impl MetadataExt for cm::Metadata {
                             .and_then(|target| {
                                 cfg_expr::Expression::parse(&target.to_string()).ok()
                             })
-                            .map_or(true, |target| {
+                            .is_none_or(|target| {
                                 target.eval(|pred| match pred {
                                     cfg_expr::Predicate::Feature(feature) => {
                                         features.contains(feature)
@@ -524,9 +518,7 @@ impl MetadataExt for cm::Metadata {
                 } else {
                     (lib_target.crate_name(), &lib_package.name)
                 };
-                if cargo_udeps_outcome_normalized
-                    .contains(&lib_name_in_toml.replace('-', "_"))
-                {
+                if cargo_udeps_outcome_normalized.contains(&lib_name_in_toml.replace('-', "_")) {
                     return None;
                 }
                 Some((&lib_package.id, (lib_target, lib_extern_crate_name)))
