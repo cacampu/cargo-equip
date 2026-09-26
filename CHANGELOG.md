@@ -13,9 +13,18 @@ This is a personal fork and is not released to crates.io. See the git history fo
 - `--remove docs` now also erases doc attributes inside macro bodies (`macro_rules!`
   definitions and macro invocations), which the previous `syn`-based visitor did not
   descend into.
-
-### Fixed
-
+- **Multi-line string literals in bundled libraries could change value.** Code is
+  re-indented when it is nested into a module, and the check that skips code with
+  multi-line literals only looked at the top level of the token stream, so a
+  string inside a function body got the indentation added to its lines. It
+  happened with default options, the output still compiled, and the check passed.
+  Among the test fixtures, `whiteread` was affected.
+- A library starting with an inner attribute (`#![..]`) lost that line under
+  `--remove docs` or `--remove comments`, which took every file starting with `#!`
+  for one with a shebang. Among the fixtures, `maplit`, `multimap` and
+  `permutohedron` were affected.
+- `--remove comments` blanked out the first line of a multi-line string literal,
+  opening quote included, breaking the code.
 - `--exclude-atcoder-crates`, `--exclude-atcoder-202301-crates` and
   `--exclude-codingame-crates` were silently excluding nothing. Their entries carried
   the registry URL, and `PkgSpec::matches` reads that URL out of `PackageId::repr` by
@@ -54,7 +63,6 @@ This is a personal fork and is not released to crates.io. See the git history fo
   removed in favour of cargo_metadata's.
 - `CodeEdit::resolve_cfgs` takes `&[&str]` rather than `&[String]`, keeping
   `src/rust/` free of `cargo_metadata` types.
-
 - Bumped 12 dependencies across major versions: `itertools` 0.10 → 0.15, `indoc`
   1 → 2, `which` 4 → 8, `petgraph` 0.6 → 0.8, `strum` 0.25 → 0.28, `spdx` 0.6 →
   0.13, `cfg-expr` 0.9 → 0.20, `fixedbitset` 0.4 → 0.5, `rand` 0.8 → 0.10,

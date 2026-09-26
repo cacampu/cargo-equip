@@ -58,15 +58,21 @@ pub(crate) fn find_skip_attribute(code: &str) -> anyhow::Result<bool> {
         }))
 }
 
+fn has_multi_line_literal(token_stream: TokenStream) -> bool {
+    token_stream.into_iter().any(|tt| match tt {
+        TokenTree::Group(group) => has_multi_line_literal(group.stream()),
+        TokenTree::Literal(lit) => lit.span().start().line != lit.span().end().line,
+        _ => false,
+    })
+}
+
 pub(crate) fn indent_code(code: &str, n: usize) -> String {
-    let is_safe_to_indent = code.parse::<TokenStream>().is_ok_and(|token_stream| {
-        !token_stream.into_iter().any(|tt| {
-            matches!(
-                tt, TokenTree::Literal(lit)
-                if lit.span().start().line != lit.span().end().line
-            )
-        })
-    });
+    // Indenting a line that starts inside a multi-line literal would change the
+    // literal's value, so such code is left as it is. The literal can be at any
+    // depth: a string inside a function body sits in the body's brace group.
+    let is_safe_to_indent = code
+        .parse::<TokenStream>()
+        .is_ok_and(|token_stream| !has_multi_line_literal(token_stream));
 
     if is_safe_to_indent {
         code.lines()
@@ -265,7 +271,7 @@ fn set_span(mask: &mut [FixedBitSet], span: Span, p: bool) {
     } else {
         let i2 = span.end().line - 1;
         let l = span.start().column;
-        mask[i1].insert_range(l..);
+        mask[i1].set_range(l.., p);
         for mask in &mut mask[i1 + 1..i2] {
             mask.set_range(.., p);
         }
@@ -457,5 +463,21 @@ impl<'opt> CodeEdit<'opt> {
         self.file =
             syn::parse_file(&self.string).with_context(|| "broke the code during modification")?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::indent_code;
+    use pretty_assertions::assert_eq;
+
+    /// The check for multi-line literals only looked at the top level of the token
+    /// stream, so a string inside a function body got indented and changed value.
+    #[test]
+    fn indent_code_leaves_multi_line_literals_alone() {
+        assert_eq!("    fn f() {}\n", indent_code("fn f() {}\n", 1));
+
+        let code = "fn f() -> &'static str {\n    \"a\nb\"\n}\n";
+        assert_eq!(code, indent_code(code, 1));
     }
 }

@@ -323,7 +323,10 @@ impl<'opt> CodeEdit<'opt> {
             Cow::from(&self.string)
         };
 
-        let code = if code.starts_with("#!") {
+        // A shebang line is not Rust tokens and has no business inside a bundled
+        // module, so it is dropped. `#!` followed by `[` is not a shebang, though:
+        // it opens an inner attribute, which is ordinary code and has to stay.
+        let code = if code.starts_with("#!") && !code[2..].trim_start().starts_with('[') {
             let (_, code) = code.split_at(code.find('\n').unwrap_or(code.len()));
             code
         } else {
@@ -514,6 +517,38 @@ m! {
 }
 "#,
         )
+    }
+
+    /// `erase` took every file starting with `#!` for one with a shebang and
+    /// dropped its first line, so a library starting with an inner attribute lost
+    /// it.
+    #[test]
+    fn inner_attribute_on_the_first_line_survives_erasing() -> anyhow::Result<()> {
+        DUMMY_MOD_NAME.with(|dummy_mod_name| {
+            let mut edit =
+                CodeEdit::from_code(dummy_mod_name, "#![allow(dead_code)]\n/// doc\nfn f() {}\n")?;
+            edit.erase_docs()?;
+            assert_eq!("#![allow(dead_code)]\n       \nfn f() {}\n", edit.finish()?);
+            Ok(())
+        })
+    }
+
+    /// `set_span` set the bits on the first line of a multi-line span even when
+    /// asked to clear them, so erasing comments blanked out the first line of a
+    /// multi-line string literal, opening quote included.
+    #[test]
+    fn erasing_comments_keeps_multi_line_literals() -> anyhow::Result<()> {
+        DUMMY_MOD_NAME.with(|dummy_mod_name| {
+            let input =
+                "fn f() -> &'static str {\n    \"first\n  // not a comment\nlast\" // c\n}\n";
+            let mut edit = CodeEdit::from_code(dummy_mod_name, input)?;
+            edit.erase_comments()?;
+            assert_eq!(
+                "fn f() -> &'static str {\n    \"first\n  // not a comment\nlast\"     \n}\n",
+                edit.finish()?,
+            );
+            Ok(())
+        })
     }
 
     #[test]
