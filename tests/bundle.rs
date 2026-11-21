@@ -70,6 +70,32 @@ bundle_tests! {
 /// `fib(0)..=fib(10)`, one per line, as printed by the `memoise` fixtures.
 const FIB: &str = "0\n1\n1\n2\n3\n5\n8\n13\n21\n34\n55\n";
 
+#[test]
+fn stacked_attributes_preserve_only_original_invocations() -> anyhow::Result<()> {
+    let name = "stacked-attributes";
+    let bundled = bundle(name, LOCK.lock().unwrap())?;
+    let original = include_str!("solutions/src/bin/stacked-attributes.rs");
+    let main = original
+        .split_once("#[preserve_first]")
+        .unwrap()
+        .1
+        .split_once("\n\nconst ORIGINAL")
+        .unwrap()
+        .0;
+    assert!(
+        bundled.contains(&format!("/*#[preserve_first]{main}*/")),
+        "{}",
+        bundled
+    );
+    assert_eq!(bundled.matches("preserve_second]").count(), 1, "{bundled}");
+    assert_eq!(
+        bundled.matches("/*expand_number!()*/").count(),
+        1,
+        "{bundled}"
+    );
+    compile_and_run(name, &bundled, "", "84\n")
+}
+
 /// Runs `cargo equip` over the fixture and returns the bundled code.
 fn bundle(name: &str, _: MutexGuard<'_, ()>) -> anyhow::Result<String> {
     let stdout = Rc::new(RefCell::default());

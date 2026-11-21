@@ -25,6 +25,7 @@ impl<'opt> CodeEdit<'opt> {
         expander: &mut ProcMacroExpander<'_>,
     ) -> anyhow::Result<()> {
         self.apply()?;
+        let mut generated = GeneratedRanges::default();
 
         loop {
             self.force_apply()?;
@@ -39,12 +40,8 @@ impl<'opt> CodeEdit<'opt> {
             .visit_file(&self.file);
 
             if let Some((span, expansion)) = output? {
-                let end = to_index(code_lines, span.end());
-                let start = to_index(code_lines, span.start());
-                self.string
-                    .insert_str(end, &format!("*/{}", minify_group(expansion)));
-                self.string.insert_str(start, "/*");
-
+                let range = to_range(code_lines, span);
+                generated.replace_invocation(&mut self.string, range, minify_group(expansion));
                 continue;
             }
 
@@ -57,17 +54,16 @@ impl<'opt> CodeEdit<'opt> {
 
             if let Some((expansion, item_span, macro_path_span, comma_span)) = output? {
                 let insert_at = to_index(code_lines, item_span.end());
-                let comma_end = comma_span.map(|comma_end| to_index(code_lines, comma_end));
-                let path_range = to_range(code_lines, macro_path_span);
-
-                self.string.insert_str(insert_at, &minify_group(expansion));
-                let end = if let Some(comma_end) = comma_end {
-                    comma_end
-                } else {
-                    path_range.end
-                };
-                self.string.insert_str(end, "*/");
-                self.string.insert_str(path_range.start, "/*");
+                let mut path_range = to_range(code_lines, macro_path_span);
+                if let Some(comma_end) = comma_span {
+                    path_range.end = to_index(code_lines, comma_end);
+                }
+                generated.replace(
+                    &mut self.string,
+                    insert_at..insert_at,
+                    &minify_group(expansion),
+                );
+                generated.replace_invocation(&mut self.string, path_range, String::new());
 
                 continue;
             }
@@ -80,11 +76,8 @@ impl<'opt> CodeEdit<'opt> {
             .visit_file(&self.file);
 
             if let Some((span, expansion)) = output? {
-                let i1 = to_index(code_lines, span.end());
-                let i2 = to_index(code_lines, span.start());
-                self.string
-                    .insert_str(i1, &format!("*/{}", minify_group(expansion)));
-                self.string.insert_str(i2, "/*");
+                let range = to_range(code_lines, span);
+                generated.replace_invocation(&mut self.string, range, minify_group(expansion));
                 continue;
             }
 
@@ -376,5 +369,48 @@ impl<'opt> CodeEdit<'opt> {
                 }
             }
         }
+    }
+}
+
+/// Byte ranges in the current source that were already rewritten by expansion.
+/// The parser assigns fresh spans on every pass, so track edits in the source itself.
+#[derive(Default)]
+struct GeneratedRanges(Vec<Range<usize>>);
+
+impl GeneratedRanges {
+    fn replace_invocation(&mut self, source: &mut String, range: Range<usize>, expansion: String) {
+        let first = self.0.partition_point(|old| old.end <= range.start);
+        let already_generated = self
+            .0
+            .get(first)
+            .is_some_and(|old| old.start <= range.start && range.end <= old.end);
+        let text = if already_generated {
+            expansion
+        } else {
+            format!("/*{}*/{expansion}", &source[range.clone()])
+        };
+        self.replace(source, range, &text);
+    }
+
+    fn replace(&mut self, source: &mut String, range: Range<usize>, text: &str) {
+        // Merge touching ranges as well, so later expansions can span several generated items.
+        let first = self.0.partition_point(|old| old.end < range.start);
+        let last = self.0.partition_point(|old| old.start <= range.end);
+        let (start, end) = if first < last {
+            (
+                range.start.min(self.0[first].start),
+                range.end.max(self.0[last - 1].end),
+            )
+        } else {
+            (range.start, range.end)
+        };
+        for old in &mut self.0[last..] {
+            old.start = old.start - range.len() + text.len();
+            old.end = old.end - range.len() + text.len();
+        }
+        let end = end - range.len() + text.len();
+        self.0
+            .splice(first..last, (start < end).then_some(start..end));
+        source.replace_range(range, text);
     }
 }

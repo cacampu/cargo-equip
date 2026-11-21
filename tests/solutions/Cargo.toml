@@ -5,6 +5,7 @@ edition = "2018"
 publish = false
 
 [dependencies]
+expansion-fixture = { path = "expansion-fixture" }
 fixedbitset = "0.4.0"
 lazy_static = "1.4.0"
 maplit = "1.0.2"
