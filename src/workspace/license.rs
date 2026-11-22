@@ -248,18 +248,7 @@ fn read(package: &cm::Package, cache_dir: &Path) -> Result<Option<String>, Vec<S
 
                 Ok(content)
             } else {
-                let repository = package
-                    .manifest_dir()
-                    .ancestors()
-                    .find(|p| p.join(".git").is_dir())
-                    .with_context(|| {
-                        format!(
-                            "could not find a license file in `{}`",
-                            package.manifest_dir()
-                        )
-                    })?;
-                find(repository.as_ref(), file_names)
-                    .with_context(|| format!("could not find a license file in `{}`", repository))?
+                find_in_local_git_repo(package.manifest_dir().as_ref(), file_names)
             }
         })
         .map(Some)
@@ -301,6 +290,25 @@ fn read_git_sha1(package: &cm::Package) -> anyhow::Result<String> {
     }
 }
 
+fn find_in_local_git_repo(manifest_dir: &Path, file_names: &[&str]) -> anyhow::Result<String> {
+    let repository = manifest_dir
+        .ancestors()
+        // A submodule or linked worktree records its Git directory in a .git file.
+        .find(|dir| dir.join(".git").exists())
+        .with_context(|| {
+            format!(
+                "could not find a license file in `{}`",
+                manifest_dir.display()
+            )
+        })?;
+    find(repository, file_names).with_context(|| {
+        format!(
+            "could not find a license file in `{}`",
+            repository.display()
+        )
+    })?
+}
+
 fn find_in_git_repos(url: &str, sha1: &str, file_names: &[&str]) -> anyhow::Result<Option<String>> {
     let tempdir = tempfile::Builder::new()
         .prefix("cargo-equip-git-clone-")
@@ -327,4 +335,29 @@ fn find(dir: &Path, file_names: &[&str]) -> Option<anyhow::Result<String>> {
         .map(|name| dir.join(name))
         .find(|path| path.exists())?;
     Some(cargo_util::paths::read(path))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::find_in_local_git_repo;
+    use std::fs;
+
+    #[test]
+    fn submodule_uses_its_own_license() -> anyhow::Result<()> {
+        let temp = tempfile::tempdir()?;
+        let parent = temp.path();
+        let submodule = parent.join("vendor/cplib");
+        let manifest_dir = submodule.join("crates/grid");
+        fs::create_dir_all(&manifest_dir)?;
+        fs::create_dir(parent.join(".git"))?;
+        fs::write(parent.join("LICENSE"), "parent license")?;
+        fs::write(submodule.join(".git"), "gitdir: ../../.git/modules/cplib\n")?;
+        fs::write(submodule.join("LICENSE"), "submodule license")?;
+
+        assert_eq!(
+            find_in_local_git_repo(&manifest_dir, &["LICENSE"])?,
+            "submodule license"
+        );
+        Ok(())
+    }
 }

@@ -116,7 +116,7 @@ Install a `nightly` toolchain and [cargo-udeps](https://github.com/est31/cargo-u
 Then install this fork from Git. Note that `cargo install cargo-equip` would install the *original* crate from crates.io, not this fork, and the two share the same binary name.
 
 ```console
-❯ cargo install cargo-equip --git https://github.com/cacampu/cargo-equip
+❯ cargo install --locked --git https://github.com/cacampu/cargo-equip --branch feat/support-atcoder-202510 cargo-equip
 ```
 
 ## Usage

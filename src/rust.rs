@@ -372,11 +372,10 @@ impl<'opt> CodeEdit<'opt> {
                         vec![
                             src_path
                                 .with_extension("")
-                                .with_file_name(ident.to_string())
-                                .with_extension("rs"),
+                                .join(format!("{}.rs", ident)),
                             src_path
                                 .with_extension("")
-                                .with_file_name(ident.to_string())
+                                .join(ident.to_string())
                                 .join("mod.rs"),
                         ]
                     };
@@ -468,7 +467,7 @@ impl<'opt> CodeEdit<'opt> {
 
 #[cfg(test)]
 mod tests {
-    use super::indent_code;
+    use super::{indent_code, CodeEdit};
     use pretty_assertions::assert_eq;
 
     /// The check for multi-line literals only looked at the top level of the token
@@ -479,5 +478,49 @@ mod tests {
 
         let code = "fn f() -> &'static str {\n    \"a\nb\"\n}\n";
         assert_eq!(code, indent_code(code, 1));
+    }
+
+    #[test]
+    fn nested_file_modules_resolve_inside_the_parent_module_directory() {
+        let temp = tempfile::tempdir().unwrap();
+        let files = [
+            ("main.rs", "mod branch; fn main() { println!(\"{}\", branch::answer()); }"),
+            ("branch.rs", "mod leaf; mod directory; pub fn answer() -> u8 { leaf::answer() + directory::answer() }"),
+            ("branch/leaf.rs", "pub fn answer() -> u8 { 20 }"),
+            ("branch/directory/mod.rs", "mod next; pub fn answer() -> u8 { next::answer() }"),
+            ("branch/directory/next.rs", "pub fn answer() -> u8 { 22 }"),
+            // Wrong sibling paths also exist: choosing them must not silently change behavior.
+            ("leaf.rs", "pub fn answer() -> u8 { 0 }"),
+            ("directory/mod.rs", "pub fn answer() -> u8 { 0 }"),
+        ];
+        for (relative, source) in files {
+            let path = temp.path().join(relative);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, source).unwrap();
+        }
+        let source = camino::Utf8PathBuf::from_path_buf(temp.path().join("main.rs")).unwrap();
+        let module = syn::parse_quote!(__cargo_equip);
+        let expanded = CodeEdit::new(&module, &source, || ("fixture".into(), "fixture"))
+            .unwrap()
+            .finish()
+            .unwrap();
+        let bundled = temp.path().join("bundled.rs");
+        let binary = temp.path().join("bundled");
+        std::fs::write(&bundled, expanded).unwrap();
+        let output = std::process::Command::new("rustc")
+            .args(["--edition=2024", "--crate-name", "fixture"])
+            .arg(bundled)
+            .arg("-o")
+            .arg(&binary)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let output = std::process::Command::new(binary).output().unwrap();
+        assert!(output.status.success());
+        assert_eq!("42\n", String::from_utf8(output.stdout).unwrap());
     }
 }

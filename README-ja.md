@@ -114,7 +114,7 @@ mod sub {
 その上で、このフォークをGitからインストールしてください。`cargo install cargo-equip`ではcrates.ioの**本家**が入ってしまう点に注意してください（バイナリ名が同じなので衝突します）。
 
 ```console
-❯ cargo install cargo-equip --git https://github.com/cacampu/cargo-equip
+❯ cargo install --locked --git https://github.com/cacampu/cargo-equip --branch feat/support-atcoder-202510 cargo-equip
 ```
 
 ## 使い方
